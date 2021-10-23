@@ -18,8 +18,8 @@ rm(data_icon_eps)
 head(t2m_data_raw)
 range(t2m_data_raw$init_tm)
 
-horizon = 48
-t2m_data = subset(t2m_data_raw, fcst_hour == horizon)[!is.na(t2m_data$obs),]
+lead_time = 48
+t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)[!is.na(t2m_data$obs),]
 
 # Evaluate raw ensemble predictions ---------------------------------------
 
@@ -89,7 +89,7 @@ new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_2021102300_t_2m
 new_fcst[,1] = NULL
 new_fcst[,ncol(new_fcst)] = NULL
 # extract forecasts for targeted horizon
-ens_fc = new_fcst[new_fcst$fcst_hour == horizon,][2:ncol(new_fcst)]
+ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
 ens_fc = as.numeric(ens_fc)
 
 # Forecast ----------------------------------------------------------------
