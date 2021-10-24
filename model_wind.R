@@ -25,9 +25,15 @@ new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_2021102300_wind
 new_fcst[,1] = NULL
 new_fcst[,ncol(new_fcst)] = NULL
 
+# Prepare Output Data
+fcst_wind = matrix(ncol = 5, nrow = 5)
+
 
 # Model -------------------------------------------------------------------
 
+
+# Iterator for Output
+i = 1
 
 for (lead_time in c(36,48,60,72,84)){
   
@@ -61,7 +67,14 @@ for (lead_time in c(36,48,60,72,84)){
                                type = "scale")
   wind_benchmark2_pred = qtnorm(quantile_levels, wind_benchmark2_loc, wind_benchmark2_sc, left = 0)
   
+  # Write to Output Data
+  fcst_wind[i,] = wind_benchmark2_pred
+  i = i+1
+  
   # print forecasts made by both models
   print(paste("lead_time:",lead_time,"h"))
   print(rbind(wind_benchmark1_pred,wind_benchmark2_pred))
 }
+
+# Forecasts ready to write to csv
+fcst_wind

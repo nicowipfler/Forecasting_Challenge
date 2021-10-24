@@ -21,13 +21,19 @@ rm(data_icon_eps)
 # TODO CHANGE DATE when current file has been downloaded to the corresponding folder
 new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_2021102300_t_2m_Karlsruhe.txt"),
                       sep = "|", header = TRUE)
-# get rid of empty first and last row
+# Get rid of empty first and last row
 new_fcst[,1] = NULL
 new_fcst[,ncol(new_fcst)] = NULL
+
+# Prepare Output Data
+fcst_temp = matrix(ncol = 5, nrow = 5)
 
 
 # Model -------------------------------------------------------------------
 
+
+# Iterator for Output
+i = 1
 
 for (lead_time in c(36,48,60,72,84)){
   
@@ -60,7 +66,14 @@ for (lead_time in c(36,48,60,72,84)){
                               type = "scale")
   t2m_benchmark2_pred = qnorm(quantile_levels, t2m_benchmark2_loc, t2m_benchmark2_sc)
   
+  # Write to Output Data
+  fcst_temp[i,] = t2m_benchmark2_pred
+  i = i+1
+  
   # print forecasts made by both models
   print(paste("lead_time:",lead_time,"h"))
   print(rbind(t2m_benchmark1_pred,t2m_benchmark2_pred))
 }
+
+# Forecasts ready to write to csv
+fcst_temp

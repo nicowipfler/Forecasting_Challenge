@@ -63,3 +63,6 @@ for (h in 1:5){
 }
 
 pred_rq
+
+fcst_dax = t(pred_rq)
+fcst_dax
