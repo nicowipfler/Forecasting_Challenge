@@ -78,3 +78,26 @@ for (lead_time in c(36,48,60,72,84)){
 
 # Forecasts ready to write to csv
 fcst_wind
+
+# Forecasts ready to be checked visually with script visual_checks_weather.R
+fcst_wind_df = data.frame(matrix(nrow = 25, ncol = 2))
+colnames(fcst_wind_df) = c("MESS_DATUM", "F")
+class(fcst_wind_df$MESS_DATUM) = "character"
+for (i in 0:4){
+  # time
+  date = Sys.Date()
+  print(date)
+  leads = c(36,48,60,72,84)
+  lead = leads[i+1]
+  time = toString(date + hours(lead))
+  if (i == 0 ||  i == 2 || i == 4){
+    fcst_wind_df[(1+i*5):(5+i*5),1] = time
+  }
+  else{
+    fcst_wind_df[(1+i*5):(5+i*5),1] = paste(time,"00:00:00")
+  }
+  
+  # forecasts
+  fcst_wind_df[(1+i*5):(5+i*5),2] = t(fcst_wind)[,i+1]
+}
+fcst_wind_df
