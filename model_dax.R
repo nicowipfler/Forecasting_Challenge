@@ -1,15 +1,17 @@
 # Preparations ------------------------------------------------------------
 
+
 library(dplyr)
 library(lubridate)
 library(tidyr)
 library(quantreg)
 quantile_levels = c(0.025,0.25,0.5,0.75,0.975)
 
+
 # FUNCTION computate return -----------------------------------------------
 
-compute_return = function(y, type = "log",
-                           h = 1){
+
+compute_return = function(y, type = "log", h = 1){
   n <- length(y)
   y2 <- y[-(1:h)] # exclude first h observations
   y1 <- y[-(n:(n-h+1))] # exclude last h observations
@@ -22,7 +24,9 @@ compute_return = function(y, type = "log",
   ret
 }
 
+
 # Load Data ---------------------------------------------------------------
+
 
 data_dir = "C://dev//Forecasting_Challenge//data//dax//"
 dat = read.table(paste0(data_dir,"2021-10-23-dax.csv"), sep = ",", header = TRUE,
@@ -34,7 +38,9 @@ dat = read.table(paste0(data_dir,"2021-10-23-dax.csv"), sep = ",", header = TRUE
          ret5 = compute_return(Adj.Close, h = 5),
          Date = ymd(Date))
 
+
 # Quantreg Model ----------------------------------------------------------
+
 
 pred_rq = matrix(NA, length(quantile_levels), 5)
 rownames(pred_rq) = c("q0.025","q0.25","q0.5","q0.75","q0.975")

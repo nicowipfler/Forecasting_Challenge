@@ -4,7 +4,8 @@
 # will be printed.
 # in case of problems email johannes.bracher@kit.edu
 
-dat <- read.csv(paste0(out_dir,"20211024_Obi_Wan_Kenobi.csv"))
+out_dir = "C://dev//Forecasting_Challenge//forecasts//"
+dat <- read.csv(paste0(out_dir,"20211024_ObiWanKenobi.csv"),stringsAsFactors=FALSE)
 
 col_names <- colnames(dat)
 expected_colnames <- c("forecast_date", "target", "horizon", "q0.025", "q0.25", "q0.5", "q0.75", "q0.975")
@@ -185,4 +186,3 @@ for(i in 1:nrow(dat)){
     if(i == nrow(dat)) cat("checked: all quantiles ordered correctly.")
   }
 }
-
