@@ -1,21 +1,34 @@
 # Preparations ------------------------------------------------------------
 
 
+# get librarys
 library(dplyr)
 library(lubridate)
 library(tidyr)
 library(quantreg)
 library(scoringRules)
 library(crch)
+# set quantile levels
 quantile_levels = c(0.025,0.25,0.5,0.75,0.975)
+# load functions for forecasting, forecast evaluation and forecast export
+source('model_dax.R')
+source('model_wind.R')
+source('model_temp.R')
+source('visual_checks.R')
+source('create_csv.R')
+#TODO The current data must have been saved in the corresponding directories.
+#TODO DAX: Yahoo Finance ^GDAXI, historical data with maximum timeframe under the name "yyyy-mm-dd-dax.csv".
+#TODO Temperature: Get from git repo
+#TODO Wind: Get from git repo
 
 
 # Forecasts ---------------------------------------------------------------
 
 
-fcst_dax = dax_quantreg("2021-10-23", TRUE)
+rolling_window_dax = 200
+fcst_dax = dax_quantreg('2021-10-26', transpose=TRUE, rolling_window=rolling_window_dax)
 fcst_dax
-plot_forecasts_dax('2021-10-23', fcst_dax, 100, 'quantile regression (basic)')
+plot_forecasts_dax('2021-10-26', fcst_dax, history_size=rolling_window_dax, model_name='quantile regression (basic)')
 
 fcst_temp = temp_emos('2021-10-23')
 fcst_temp
@@ -26,3 +39,4 @@ fcst_wind
 #TODO Funktion um diese Forecasts zu plotten
 
 create_csv("2021-10-23", fcst_dax, fcst_temp, fcst_wind)
+

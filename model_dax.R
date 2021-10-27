@@ -10,12 +10,7 @@ compute_return = function(y, type = "log", h = 1){
   }
   ret
 }
-dax_quantreg = function(init_date, t=FALSE){
-  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
-  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
-  #' t: Boolean, expresses weather the results should be transposed or not, e.g. TRUE
-  
-  # get data
+get_dax_data = function(init_date){
   data_dir = "C://dev//Forecasting_Challenge//data//dax//"
   dat = read.table(paste0(data_dir,init_date,"-dax.csv"), sep = ",", header = TRUE,
                    na.strings = "null") %>%
@@ -25,6 +20,18 @@ dax_quantreg = function(init_date, t=FALSE){
            ret4 = compute_return(Adj.Close, h = 4),
            ret5 = compute_return(Adj.Close, h = 5),
            Date = ymd(Date))
+  return(dat)
+}
+dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100){
+  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  #' transpose: Boolean, expresses weather the results should be transposed or not, e.g. TRUE
+  #' rolling_window: Integer setting the amount of past observations to be included to the training set, e.g. 255
+  
+  # get data
+  dat = get_dax_data(init_date)
+  # restrict to data in rolling window
+  dat = dat[(dim(dat)[1]-rolling_window):dim(dat)[1],]
   # prep
   quantile_levels = c(0.025,0.25,0.5,0.75,0.975)
   pred_rq = matrix(NA, length(quantile_levels), 5)
@@ -51,7 +58,7 @@ dax_quantreg = function(init_date, t=FALSE){
     # Enter prediction into matrix
     pred_rq[,h] <- predict(fit, newdata = new_data)
   }
-  if(t){
+  if(transpose){
     pred_rq = t(pred_rq)
   }
   return(pred_rq)
