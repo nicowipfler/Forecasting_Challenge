@@ -1,15 +1,3 @@
-# Necessaritys ------------------------------------------------------------
-
-
-library(dplyr)
-library(lubridate)
-library(tidyr)
-library(quantreg)
-
-
-# Functions ---------------------------------------------------------------
-
-
 compute_return = function(y, type = "log", h = 1){
   n <- length(y)
   y2 <- y[-(1:h)] # exclude first h observations
@@ -22,8 +10,6 @@ compute_return = function(y, type = "log", h = 1){
   }
   ret
 }
-
-
 dax_quantreg = function(init_date, t=FALSE){
   #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
