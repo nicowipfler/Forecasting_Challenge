@@ -2,7 +2,12 @@
 
 
 plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
-  #'# inputs have to be in the exact format!
+  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+  #' init_date: String containing date of initialization of the forecasts, e.g. "2021-10-23"
+  #' forecasts: 5x5 Matrix containing DAX forecasts, rows: horizons, columns: quantile levels
+  #' history_size: Integer containing the number of days the graph should reach into the past, e.g. 100
+  #' model_name: String containing the model name, e.g. "quantile regression"
+  
   # get data corresponding to init_date
   data_dir = "C://dev//Forecasting_Challenge//data//dax//"
   dat = read.table(paste0(data_dir,init_date,"-dax.csv"), sep = ",", header = TRUE,
@@ -38,10 +43,3 @@ plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
   legend('topleft', legend=c("50%-CI", "95%-CI", 'q0.5'), col=c('blue', 'darkgreen', NA), lty=c(1,1))
   legend('topleft', legend=c("", "", ''), col = 'black', pch=c(NA,NA,20), bty='n')
 }
-
-
-# Usage -------------------------------------------------------------------
-
-
-plot_forecasts_dax('2021-10-23', fcst_dax, 100, 'quantile regression (basic)')
-
