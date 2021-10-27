@@ -1,6 +1,3 @@
-# Function to plot --------------------------------------------------------
-
-
 plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
   #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
   #' init_date: String containing date of initialization of the forecasts, e.g. "2021-10-23"

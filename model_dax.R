@@ -7,7 +7,7 @@ library(tidyr)
 library(quantreg)
 
 
-# FUNCTION computate return -----------------------------------------------
+# Functions ---------------------------------------------------------------
 
 
 compute_return = function(y, type = "log", h = 1){
@@ -22,9 +22,6 @@ compute_return = function(y, type = "log", h = 1){
   }
   ret
 }
-
-
-# Quantreg Model ----------------------------------------------------------
 
 
 dax_quantreg = function(init_date, t=FALSE){

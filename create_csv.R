@@ -1,6 +1,3 @@
-# FUNCTION create csv -----------------------------------------------------
-
-
 create_csv = function(init_date, fcst_dax, fcst_temp, fcst_wind){
   #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
