@@ -25,18 +25,18 @@ source('create_csv.R')
 # Forecasts ---------------------------------------------------------------
 
 
-rolling_window_dax = 200
-fcst_dax = dax_quantreg('2021-10-26', transpose=TRUE, rolling_window=rolling_window_dax)
+rolling_window_dax = 190
+fcst_dax = dax_quantreg('2021-10-27', transpose=TRUE, rolling_window=rolling_window_dax)
 fcst_dax
-plot_forecasts_dax('2021-10-26', fcst_dax, history_size=rolling_window_dax, model_name='quantile regression (basic)')
+plot_forecasts_dax('2021-10-27', fcst_dax, history_size=rolling_window_dax, model_name='quantile regression (basic)')
 
-fcst_temp = temp_emos('2021-10-23')
+fcst_temp = temp_emos('2021-10-27')
 fcst_temp
 #TODO Funktion um diese Forecasts zu plotten
 
-fcst_wind = wind_emos('2021-10-23')
+fcst_wind = wind_emos('2021-10-27')
 fcst_wind
 #TODO Funktion um diese Forecasts zu plotten
 
-create_csv("2021-10-23", fcst_dax, fcst_temp, fcst_wind)
+create_csv("2021-10-27", fcst_dax, fcst_temp, fcst_wind)
 
