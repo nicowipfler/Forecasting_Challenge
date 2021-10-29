@@ -3,14 +3,14 @@ temp_emos = function(init_date){
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   
   # prepare historical data
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//"
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//"
+  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
   load(paste0(data_dir, "icon_eps_t_2m.RData"))
   t2m_data_raw = data_icon_eps
   rm(data_icon_eps)
   # Get current ensemble forecasts
   date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Karlsruhe.txt"), sep = "|", header = TRUE)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
   # Get rid of empty first and last row
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
