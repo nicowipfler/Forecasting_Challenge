@@ -55,29 +55,3 @@ temp_emos = function(init_date){
   # Forecasts ready to write to csv
   return(fcst_temp)
 }
-
-
-
-#TODO Aufräumen / Löschen, wenn Funktion für visual checks wind und temp steht
-# # Forecasts ready to be checked visually with script visual_checks_weather.R
-# fcst_temp_df = data.frame(matrix(nrow = 25, ncol = 2))
-# colnames(fcst_temp_df) = c("MESS_DATUM", "TT_TU")
-# class(fcst_temp_df$MESS_DATUM) = "character"
-# for (i in 0:4){
-#   # time
-#   date = Sys.Date()
-#   print(date)
-#   leads = c(36,48,60,72,84)
-#   lead = leads[i+1]
-#   time = toString(date + hours(lead))
-#   if (i == 0 ||  i == 2 || i == 4){
-#     fcst_temp_df[(1+i*5):(5+i*5),1] = time
-#   }
-#   else{
-#     fcst_temp_df[(1+i*5):(5+i*5),1] = paste(time,"00:00:00")
-#   }
-#   
-#   # forecasts
-#   fcst_temp_df[(1+i*5):(5+i*5),2] = t(fcst_temp)[,i+1]
-# }
-# fcst_temp_df
