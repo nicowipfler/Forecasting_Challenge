@@ -1,13 +1,13 @@
+# This Script contains all necessary libraries and R-scripts in order to make and evaluate the forecasts
+
+
 # Preparations ------------------------------------------------------------
 
 
 # get librarys
-library(dplyr)
-library(lubridate)
-library(tidyr)
-library(quantreg)
-library(scoringRules)
-library(crch)
+libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd')
+lapply(libs, require, character.only = TRUE)
+rm(libs)
 # set quantile levels
 quantile_levels = c(0.025,0.25,0.5,0.75,0.975)
 # load functions for forecasting, forecast evaluation and forecast export
@@ -25,18 +25,25 @@ source('create_csv.R')
 # Forecasts ---------------------------------------------------------------
 
 
+# DAX
 rolling_window_dax = 190
 fcst_dax = dax_quantreg('2021-10-27', transpose=TRUE, rolling_window=rolling_window_dax)
 fcst_dax
 plot_forecasts_dax('2021-10-27', fcst_dax, history_size=rolling_window_dax, model_name='quantile regression (basic)')
 
+# Temperature
+history_weather = 10
 fcst_temp = temp_emos('2021-10-27')
 fcst_temp
-#TODO Funktion um diese Forecasts zu plotten
+#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
+plot_forecasts_weather('2021-10-27', fcst_temp, history_size=history_weather, model_name='EMOS using normal distribution', 'air_temperature')
 
+# Wind
 fcst_wind = wind_emos('2021-10-27')
 fcst_wind
-#TODO Funktion um diese Forecasts zu plotten
+#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
+plot_forecasts_weather('2021-10-27', fcst_wind, history_size=history_weather, model_name='EMOS using truncated normal distribution', 'wind')
 
+# Export
 create_csv("2021-10-27", fcst_dax, fcst_temp, fcst_wind)
 

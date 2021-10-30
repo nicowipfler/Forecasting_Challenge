@@ -1,3 +1,6 @@
+# This file contains several functions that serve the purpose of estimating DAX (log) returns
+
+
 compute_return = function(y, type = "log", h = 1){
   n <- length(y)
   y2 <- y[-(1:h)] # exclude first h observations
@@ -10,6 +13,8 @@ compute_return = function(y, type = "log", h = 1){
   }
   ret
 }
+
+
 get_dax_data = function(init_date){
   data_dir = "C://dev//Forecasting_Challenge//data//dax//"
   dat = read.table(paste0(data_dir,init_date,"-dax.csv"), sep = ",", header = TRUE,
@@ -22,6 +27,8 @@ get_dax_data = function(init_date){
            Date = ymd(Date))
   return(dat)
 }
+
+
 dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100){
   #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"

@@ -1,15 +1,22 @@
+# This file contains several functions that serve the purpose of estimating wind
+
+
+get_hist_wind_data = function(){
+  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+  load(paste0(data_dir, "icon_eps_wind_10m.RData"))
+  return(data_icon_eps)
+}
+
+
 wind_emos = function(init_date){
   #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   
   # Get historical data
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  load(paste0(data_dir, "icon_eps_wind_10m.RData"))
-  wind_data_raw = data_icon_eps
-  rm(data_icon_eps)
+  wind_data_raw = get_hist_wind_data()
   # Get current ensemble forecasts
   # TODO CHANGE DATE when current file has been downloaded to the corresponding folder
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
   date_formatted = gsub('-','',init_date)
   new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
   # get rid of empty first and last column

@@ -1,14 +1,21 @@
+# This file contains several functions that serve the purpose of estimating temperature
+
+
+get_hist_temp_data = function(){
+  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+  load(paste0(data_dir, "icon_eps_t_2m.RData"))
+  return(data_icon_eps)
+}
+
+
 temp_emos = function(init_date){
   #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   
   # prepare historical data
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  load(paste0(data_dir, "icon_eps_t_2m.RData"))
-  t2m_data_raw = data_icon_eps
-  rm(data_icon_eps)
+  t2m_data_raw = get_hist_temp_data()
   # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
   date_formatted = gsub('-','',init_date)
   new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
   # Get rid of empty first and last row
