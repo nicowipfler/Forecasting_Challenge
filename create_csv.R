@@ -2,7 +2,7 @@
 
 
 create_csv = function(init_date, fcst_dax, fcst_temp, fcst_wind){
-  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+  #' Function to create the csv-file, that is to be submissed, after the forecasts were made
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' fcst_dax: 5x5 Matrix containing forecasts for DAX, rows: horizons, columns: quantile levels
   #' fcst_temp: 5x5 Matrix containing forecasts for t2m, rows: horizons, columns: quantile levels

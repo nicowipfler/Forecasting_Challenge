@@ -2,7 +2,7 @@
 
 
 plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
-  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+  #' Function to plot forecasts of DAX alongside historic data to visually ensure conclusiveness
   #' init_date: String containing date of initialization of the forecasts, e.g. "2021-10-23"
   #' forecasts: 5x5 Matrix containing DAX forecasts, rows: horizons, columns: quantile levels
   #' history_size: Integer containing the number of days the graph should reach into the past, e.g. 100
@@ -45,7 +45,7 @@ plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
 }
 
 plot_forecasts_weather = function(init_date, forecasts, history_size, model_name, variable){
-  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+  #' Function to plot forecasts of weather alongside historic data to visually ensure conclusiveness
   #' init_date: String containing date of initialization of the forecasts, e.g. "2021-10-23"
   #' forecasts: 5x5 Matrix containing weather (temp OR wind) forecasts, rows: horizons, columns: quantile levels
   #' history_size: Integer containing the number of days the graph should reach into the past, e.g. 10

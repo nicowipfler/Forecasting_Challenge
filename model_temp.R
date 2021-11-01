@@ -2,6 +2,8 @@
 
 
 get_hist_temp_data = function(){
+  #' Function to get historical temp data
+  
   data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
   load(paste0(data_dir, "icon_eps_t_2m.RData"))
   return(data_icon_eps)
@@ -9,7 +11,7 @@ get_hist_temp_data = function(){
 
 
 temp_emos = function(init_date){
-  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+  #' Function to make forecasts of temp using EMOS with normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   
   # prepare historical data

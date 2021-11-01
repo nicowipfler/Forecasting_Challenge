@@ -2,6 +2,8 @@
 
 
 get_hist_wind_data = function(){
+  #' Function to get historical temp data
+  
   data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
   load(paste0(data_dir, "icon_eps_wind_10m.RData"))
   return(data_icon_eps)
@@ -9,14 +11,13 @@ get_hist_wind_data = function(){
 
 
 wind_emos_tn = function(init_date, mode=1){
-  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+  #' Function to make forecasts of temp using EMOS with truncated normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' mode: Integer indicating wether [1] forecasts or [2] model_parameters are to be returned
   
   # Get historical data
   wind_data_raw = get_hist_wind_data()
   # Get current ensemble forecasts
-  # TODO CHANGE DATE when current file has been downloaded to the corresponding folder
   data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
   date_formatted = gsub('-','',init_date)
   new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
@@ -72,7 +73,7 @@ wind_emos_tn = function(init_date, mode=1){
 
 
 wind_emos_tl = function(init_date, mode=1){
-  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+  #' Function to make forecasts of temp using EMOS with truncated logistic distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' mode: Integer indicating wether [1] forecasts or [2] model_parameters are to be returned
   
