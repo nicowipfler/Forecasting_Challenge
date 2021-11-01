@@ -5,9 +5,8 @@
 
 
 # get librarys
-libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2')
-lapply(libs, require, character.only = TRUE)
-rm(libs)
+source('toolkit.R')
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2'))
 # load functions for forecasting, forecast evaluation and forecast export
 source('model_dax.R')
 source('model_wind.R')
