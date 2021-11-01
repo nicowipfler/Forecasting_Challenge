@@ -26,7 +26,7 @@ source('create_csv.R')
 
 
 # DAX
-rolling_window_dax = 190
+rolling_window_dax = 150 # Aus model_enhancement: 150 sollte optimal sein
 fcst_dax = dax_quantreg('2021-10-27', transpose=TRUE, rolling_window=rolling_window_dax)
 fcst_dax
 plot_forecasts_dax('2021-10-27', fcst_dax, history_size=rolling_window_dax, model_name='quantile regression (basic)')
@@ -39,10 +39,10 @@ fcst_temp
 plot_forecasts_weather('2021-10-27', fcst_temp, history_size=history_weather, model_name='EMOS using normal distribution', 'air_temperature')
 
 # Wind
-fcst_wind = wind_emos_tn('2021-10-27')
-fcst_wind
+#fcst_wind = wind_emos_tln('2021-10-27')
+#fcst_wind
 #TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
-plot_forecasts_weather('2021-10-27', fcst_wind, history_size=history_weather, model_name='EMOS using truncated normal distribution', 'wind')
+#plot_forecasts_weather('2021-10-27', fcst_wind, history_size=history_weather, model_name='EMOS using truncated normal distribution', 'wind')
 
 # Wind using Truncated Logistic
 fcst_wind = wind_emos_tl('2021-10-27')
