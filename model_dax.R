@@ -37,12 +37,13 @@ get_dax_data = function(init_date){
 }
 
 
-dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_data = FALSE, data = NA){
+dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_data = FALSE, data = NA, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
   #' DAX Forecast using quantile regression with moving_window of rolling_window
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' transpose: Boolean, expresses weather the results should be transposed or not, e.g. TRUE
   #' rolling_window: Integer setting the amount of past observations to be included to the training set, e.g. 150
   #' data: dataset containing dax data, standard value NA -> get newest (just for testing purposes as of now)
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   # get data
   if(!give_data){
@@ -53,9 +54,8 @@ dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_dat
   # restrict to data in rolling window
   dat = dat[(dim(dat)[1]-rolling_window):dim(dat)[1],]
   # prep
-  quantile_levels = c(0.025,0.25,0.5,0.75,0.975)
   pred_rq = matrix(NA, length(quantile_levels), 5)
-  rownames(pred_rq) = c("q0.025","q0.25","q0.5","q0.75","q0.975")
+  #rownames(pred_rq) = c("q0.025","q0.25","q0.5","q0.75","q0.975")
   colnames(pred_rq) = c("1 day", "2 days", "5 days", "6 days", "7 days")
   # Run separate quantile regression for each h (see p. 19-21 on slides)
   for (h in 1:5){

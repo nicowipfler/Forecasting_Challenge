@@ -5,11 +5,9 @@
 
 
 # get librarys
-libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd')
+libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2')
 lapply(libs, require, character.only = TRUE)
 rm(libs)
-# set quantile levels
-quantile_levels = c(0.025,0.25,0.5,0.75,0.975)
 # load functions for forecasting, forecast evaluation and forecast export
 source('model_dax.R')
 source('model_wind.R')
@@ -39,7 +37,7 @@ fcst_temp
 plot_forecasts_weather('2021-10-27', fcst_temp, history_size=history_weather, model_name='EMOS using normal distribution', 'air_temperature')
 
 # Wind
-#fcst_wind = wind_emos_tln('2021-10-27')
+#fcst_wind = wind_emos_tn('2021-10-27')
 #fcst_wind
 #TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
 #plot_forecasts_weather('2021-10-27', fcst_wind, history_size=history_weather, model_name='EMOS using truncated normal distribution', 'wind')
