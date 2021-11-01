@@ -2,6 +2,11 @@
 
 
 compute_return = function(y, type = "log", h = 1){
+  #' Function to compute log returns of DAX
+  #' y: observations
+  #' type: log or not
+  #' h: int, horizon
+  
   n <- length(y)
   y2 <- y[-(1:h)] # exclude first h observations
   y1 <- y[-(n:(n-h+1))] # exclude last h observations
@@ -16,6 +21,9 @@ compute_return = function(y, type = "log", h = 1){
 
 
 get_dax_data = function(init_date){
+  #' Get the DAX data of the corresponding date
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  
   data_dir = "C://dev//Forecasting_Challenge//data//dax//"
   dat = read.table(paste0(data_dir,init_date,"-dax.csv"), sep = ",", header = TRUE,
                    na.strings = "null") %>%
@@ -29,14 +37,19 @@ get_dax_data = function(init_date){
 }
 
 
-dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100){
-  #' ALL INPUTS NEED TO BE IN THE CORRECT FORMAT
+dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_data = FALSE, data = NA){
+  #' DAX Forecast using quantile regression with moving_window of rolling_window
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' transpose: Boolean, expresses weather the results should be transposed or not, e.g. TRUE
-  #' rolling_window: Integer setting the amount of past observations to be included to the training set, e.g. 255
+  #' rolling_window: Integer setting the amount of past observations to be included to the training set, e.g. 150
+  #' data: dataset containing dax data, standard value NA -> get newest (just for testing purposes as of now)
   
   # get data
-  dat = get_dax_data(init_date)
+  if(!give_data){
+    dat = get_dax_data(init_date)
+  } else {
+    dat = data
+  }
   # restrict to data in rolling window
   dat = dat[(dim(dat)[1]-rolling_window):dim(dat)[1],]
   # prep
