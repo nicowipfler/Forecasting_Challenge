@@ -83,7 +83,9 @@ for (i in 1:5){
 # Find optimal rolling_window for DAX -------------------------------------
 
 
+library('ggplot2')
 source('model_dax.R')
+source('model_enhancements_toolkit.R')
 data = get_dax_data('2021-10-27')
 # Start erst nach der Finanzkrise
 data = subset(data, as.Date(Date) > '2010-01-01')
@@ -93,6 +95,9 @@ dates = data$Date
 amount_data = length(dates)
 # Prepare matrix for scores
 length_scores = matrix(nrow=191,ncol=2)
+# Quantile Levels
+quantile_levels = c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9) 
+# First implementation: c(0.05,0.25,0.5,0.75,0.975), but for this analysis they should be equidistant
 
 # For each rolling_window length:
 for (window_length in 10:200){
@@ -105,12 +110,13 @@ for (window_length in 10:200){
   for (i in 1:amount_sections){
     section = data[(amount_data-i*section_size+1):(amount_data-(i-1)*section_size),]
     # Predict its last 5 values based on all the others (exactly window_length observations)
-    pred = dax_quantreg(section[length(section)-5]$Date, transpose=TRUE, rolling_window=window_length, give_data=TRUE, data=section[1:(section_size-5),])
+    pred = dax_quantreg(section[length(section)-5]$Date, transpose=TRUE, rolling_window=window_length, give_data=TRUE, 
+                        data=section[1:(section_size-5),], quantile_levels=quantile_levels)
     # Compute Quantile Scores of these predictions on equidistant grid
-    score = matrix(nrow=5,ncol=5)
+    score = matrix(nrow=5,ncol=length(quantile_levels))
     for (horizon in 1:5){
       obs = section[(section_size-5+horizon),paste0('ret',horizon)]
-      for (n_quantile in 1:5){
+      for (n_quantile in 1:length(quantile_levels)){
         quantile = quantile_levels[n_quantile]
         forecast = pred[horizon, n_quantile]
         score[horizon, n_quantile] = quantile_score(quantile, forecast, obs)
@@ -142,5 +148,5 @@ ggplot(length_scores_df, aes(w_len, score)) +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(x='window_length')
 # Blaue (smoothe) Linie mit LOESS (Locally estimated scatterplot smoothing)
-savePlot(filename='C://dev//Forecasting_Challenge//graphics for elaboration//DAX_quantile_regression_optimal_window_length.jpg', type="jpeg")
+savePlot(filename='C://dev//Forecasting_Challenge//graphics for elaboration//DAX_quantile_regression_optimal_window_length_EQUIDISTANT_QUANTILES.jpg', type="jpeg")
 dev.off()
