@@ -10,10 +10,11 @@ get_hist_wind_data = function(){
 }
 
 
-wind_emos_tn = function(init_date, mode=1){
+wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' mode: Integer indicating wether [1] forecasts or [2] model_parameters are to be returned
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   # Get historical data
   wind_data_raw = get_hist_wind_data()
@@ -72,10 +73,11 @@ wind_emos_tn = function(init_date, mode=1){
 }
 
 
-wind_emos_tl = function(init_date, mode=1){
+wind_emos_tl = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' mode: Integer indicating wether [1] forecasts or [2] model_parameters are to be returned
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   # Get historical data
   wind_data_raw = get_hist_wind_data()

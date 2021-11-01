@@ -10,9 +10,10 @@ get_hist_temp_data = function(){
 }
 
 
-temp_emos = function(init_date){
+temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   # prepare historical data
   t2m_data_raw = get_hist_temp_data()
