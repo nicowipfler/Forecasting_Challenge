@@ -1,7 +1,7 @@
 # Script containing several exploratory analyses aiming to improve existing models or to find new ones
 
 
-# Find a better fitting distribution for EMOS model wind ------------------
+# WEEK 2: Test better fitting distributions for EMOS wind -----------------
 
 
 # First plot PIT rank validation diagrams for EMOS model using truncated normal
@@ -79,8 +79,7 @@ for (i in 1:5){
 # differences aren't huge
 
 
-
-# Find optimal rolling_window for DAX -------------------------------------
+# WEEK 2: Find optimal window_length for DAX Quantile Regression ----------
 
 
 library('ggplot2')
