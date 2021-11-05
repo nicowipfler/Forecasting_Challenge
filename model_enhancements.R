@@ -149,3 +149,60 @@ ggplot(length_scores_df, aes(w_len, score)) +
 # Blaue (smoothe) Linie mit LOESS (Locally estimated scatterplot smoothing)
 savePlot(filename='C://dev//Forecasting_Challenge//graphics for elaboration//DAX_quantile_regression_optimal_window_length_EQUIDISTANT_QUANTILES.jpg', type="jpeg")
 dev.off()
+
+
+# WEEK 3: GARCH for DAX ---------------------------------------------------
+
+
+source('toolkit.R')
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2'))
+source('model_dax.R')
+
+dax_data = get_dax_data("2021-10-27")
+dax_data = dax_data[!is.na(dax_data$ret1),]
+ggplot(data = dax_data, aes(x = Date, y = ret1)) + geom_line()
+# Can be modelled as stationary time series, so ARMA modelling before GARCH is not necessary
+library('rugarch')
+#TODO Has to be added to lib list later!
+spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
+                   mean.model = (list(armaOrder = c(0,0), include.mean = FALSE)),
+                   distribution.model = 'norm')
+#TODO Justify selection of student distribution
+spec
+#TODO Note optional parameter 'external.regressors'! Maybe useful?
+ugarch_fit = ugarchfit(spec, data = dax_data$ret1)
+ugarch_fit
+# Ljung-Box-Test zeigt, dass keine Autokorrelation zwischen Residuen mehr nachgewiesen werden kann -> Gut!
+# Zum Vergleich: ARMA(1,1)-model integrieren
+spec_arma = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
+                  mean.model = (list(armaOrder = c(1,1), include.mean = TRUE)),
+                  distribution.model = 'norm')
+ugarch_arma_fit = ugarchfit(spec_arma, dat = dax_data$ret1)
+ugarch_arma_fit
+# Im Wesentlichen das Gleiche
+# Ich arbeite aus Gründen der Einfachheit mit GARCH ohne ARMA weiter
+
+# QQ Plot der Residuen
+res = ugarch_fit@fit$residuals
+qqnorm(scale(res))
+qqline(scale(res))
+# Verteilungsannahme scheint nicht zu passen
+
+# NEUES MODEL
+spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
+                  mean.model = (list(armaOrder = c(1,1), include.mean = TRUE)),
+                  distribution.model = 'std')
+ugarch_fit = ugarchfit(spec, data = dax_data$ret1)
+ugarch_fit
+#TODO Überprüfen, dass das besser passt?
+
+# Verwendung in Rolling Window Ansatz
+modelroll = ugarchroll(spec = spec, dax_data$ret1, n.ahead = 1, forecast.length = 10,
+                        refit.every = 1, refit.window = 'moving', window.size = 500, calculate.VaR = FALSE)
+# Vorhergesagte Erwartungswerte
+modelroll@forecast$density$Mu
+# Vorhergesagte Quantile
+quantile(modelroll, 0.025)
+quantile(modelroll, 0.25)
+quantile(modelroll, 0.75)
+quantile(modelroll, 0.975)
