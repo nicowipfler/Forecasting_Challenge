@@ -185,7 +185,7 @@ spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
                   distribution.model = 'norm')
 ugarch_fit_test = ugarchfit(spec, data = dax_df)
 res_std_test = ugarch_fit_test@fit$residuals / ugarch_fit_test@fit$sigma
-qqPlot(res_std_test, dist='norm')
+qqPlot(res_std_test, dist='norm', main='QQ plot of residuals assuming normal distribution in GARCH model')
 # Normalverteilung scheint nicht ganz zu passen, versuche t-Verteilung
 
 
