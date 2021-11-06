@@ -162,7 +162,6 @@ source('model_dax.R')
 library('rugarch')
 # for qq plots
 library('car')
-#TODO Has to be added to lib list later!
 
 
 ## Prepare Data
@@ -219,7 +218,7 @@ infocriteria(ugarch_fit)
 ## FORECASTS
 
 
-ugarch_fc = ugarchforecast(ugarch_fit, n.ahead = 5, n.roll = 5)
+ugarch_fc = ugarchforecast(ugarch_fit, n.ahead = 5)
 quantile(ugarch_fc, probs=0.025)
 quantile(ugarch_fc, probs=0.25)
 fitted(ugarch_fc)
