@@ -168,7 +168,7 @@ library('car')
 
 
 dax_data = get_dax_data("2021-10-27")
-dax_data = dax_data[!is.na(dax_data$ret1),]
+dax_data = dax_data[!is.na(dax_data$ret5),]
 ggplot(data = dax_data, aes(x = Date, y = ret1)) + geom_line()
 # Can be modelled as stationary time series, so ARMA modelling before GARCH is not necessary
 dax_df = dax_data[,c('Date','ret1')]
@@ -315,9 +315,10 @@ load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'c
 source('model_wind.R')
 source('model_temp.R')
 source('visual_checks.R')
+source('model_enhancements_toolkit.R')
 
 #### Testversion der Funktion temp_emos
-emos_temp_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975),season_days_around=0){
+emos_temp_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975),season_radius=0,lead_time=36){
   # prepare historical data
   t2m_data_raw = get_hist_temp_data()
   # Get current ensemble forecasts
@@ -328,46 +329,96 @@ emos_temp_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
   # Prepare Output Data
-  fcst_temp = matrix(ncol = 5, nrow = 5)
+  fcst_temp = matrix(ncol = length(quantile_levels), nrow = 1)
   # MODEL
-  i = 1
-  for (lead_time in c(36,48,60,72,84)){
-    # create dataset with ensemble predictions and observations corresponding to current lead time
-    t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
-    t2m_data = t2m_data[!is.na(t2m_data$obs),]
-    t2m_data$ens_sd = sqrt(t2m_data$ens_var)
-    # Only use seasonal data if season_days_around > 0
-    if(season_days_around>0){
-      lower = as.Date(init_date) - season_days_around
-      upper = as.Date(init_date) + season_days_around
-      t2m_data = subset(t2m_data, as.Date(init_tm) %in% lower:upper | 
-                          as.Date(init_tm) %in% (lower-365):(upper-365) | 
-                          as.Date(init_tm) %in% (lower-2*365):(upper-2*365)| 
-                          as.Date(init_tm) %in% (lower-3*365):(upper-3*365))
-    }
-    # evaluate model on full historic data (with corresponding lead_time)
-    t2m_benchmark2 = crch(obs ~ ens_mean|ens_sd,
-                          data = t2m_data,
-                          dist = "gaussian",
-                          link.scale = "log",
-                          type = "crps")
-    # extract current forecasts for targeted lead_time
-    ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
-    ens_fc = as.numeric(ens_fc)
-    # forecast with EMOS model
-    pred_df = data.frame(ens_mean = mean(ens_fc), ens_sd = sd(ens_fc))
-    t2m_benchmark2_loc = predict(t2m_benchmark2,
-                                 pred_df,
-                                 type = "location")
-    t2m_benchmark2_sc = predict(t2m_benchmark2,
-                                pred_df,
-                                type = "scale")
-    t2m_benchmark2_pred = qnorm(quantile_levels, t2m_benchmark2_loc, t2m_benchmark2_sc)
-    # Write to Output Data
-    fcst_temp[i,] = t2m_benchmark2_pred
-    i = i+1
+  # create dataset with ensemble predictions and observations corresponding to current lead time
+  t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
+  t2m_data = t2m_data[!is.na(t2m_data$obs),]
+  t2m_data$ens_sd = sqrt(t2m_data$ens_var)
+  # Only use seasonal data if season_days_around > 0
+  if(season_radius>0){
+    lower = as.Date(init_date) - season_radius
+    upper = as.Date(init_date) + season_radius
+    t2m_data = subset(t2m_data, as.Date(init_tm) %in% lower:upper | 
+                        as.Date(init_tm) %in% (lower-365):(upper-365) | 
+                        as.Date(init_tm) %in% (lower-2*365):(upper-2*365)| 
+                        as.Date(init_tm) %in% (lower-3*365):(upper-3*365))
   }
+  # evaluate model on full historic data (with corresponding lead_time)
+  t2m_benchmark2 = crch(obs ~ ens_mean|ens_sd,
+                        data = t2m_data,
+                        dist = "gaussian",
+                        link.scale = "log",
+                        type = "crps")
+  # extract current forecasts for targeted lead_time
+  ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+  ens_fc = as.numeric(ens_fc)
+  # forecast with EMOS model
+  pred_df = data.frame(ens_mean = mean(ens_fc), ens_sd = sd(ens_fc))
+  t2m_benchmark2_loc = predict(t2m_benchmark2,
+                               pred_df,
+                               type = "location")
+  t2m_benchmark2_sc = predict(t2m_benchmark2,
+                              pred_df,
+                              type = "scale")
+  t2m_benchmark2_pred = qnorm(quantile_levels, t2m_benchmark2_loc, t2m_benchmark2_sc)
+  # Write to Output Data
+  fcst_temp[1,] = t2m_benchmark2_pred
   return(fcst_temp)
 }
-emos_temp_test('2021-10-27',season_days_around = 40)
-emos_temp_test('2021-10-27',season_days_around = 0)
+#emos_temp_test('2021-10-27',season_radius = 40,lead_time=36)
+#emos_temp_test('2021-10-27',season_radius = 0,lead_time=36)
+
+# Evaluate Scores of different values for season_radius
+#TODO
+init_date = '2021-11-03'
+# Quantile Levels
+quantile_levels = c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)
+# Lead times
+lead_times = c(36,48,60,72,84)
+# Current Observations
+dwd_url = selectDWD(
+  name = "Berlin-Tempelhof",
+  res = "hourly",
+  per = "recent",
+  var = 'air_temperature'
+)
+dataDWD(dwd_url)
+obs_data = readDWD('C:/dev/Forecasting_Challenge/DWDdata/hourly_air_temperature_recent_stundenwerte_TU_00433_akt.zip')
+
+# Get observations
+dates = generate_times(init_date)
+observations = subset(obs_data,
+                      MESS_DATUM == dates[1]|
+                        MESS_DATUM == dates[2]|
+                        MESS_DATUM == dates[3]|
+                        MESS_DATUM == dates[4]|
+                        MESS_DATUM == dates[5])$TT_TU
+# For each lead_time
+for (n_lead_time in 1:5){
+  lead_time = lead_times[n_lead_time]
+  obs = observations[n_lead_time]
+  scores = matrix(nrow=181,1)
+  # For each season_radius:
+  for (season_radius in 0:180){
+    forecasts = emos_temp_test(init_date,season_radius = season_radius,lead_time=lead_time,quantile_levels=quantile_levels)
+    # Compute Quantile Scores of these predictions on equidistant grid
+    score = matrix(nrow=1,ncol=length(quantile_levels))
+    for (n_quantile in 1:length(quantile_levels)){
+      quantile = quantile_levels[n_quantile]
+      forecast = forecasts[n_quantile]
+      score[1, n_quantile] = quantile_score(quantile, forecast, obs)
+    }
+    #print(paste0('Model using season radius of ',season_radius,' has a CRPS (approx.) of ', mean(score), ' for lead_time ', lead_time))
+    # Mean of all quantile scores is approx. of CRPS for this season_radius
+    scores[season_radius+1] = mean(score)
+  }
+  # Plot Scores for every season_radius tested for given lead_time and init_date
+  plot(scores,type='l',xlab='season_radius',ylab='mean(quantile_scores)',
+       main=paste0('EMOS Forecast Scores with seasonal r (x-axis) for lead_time ',lead_time, ' init on ', init_date))
+  invisible(readline(prompt="Press [enter] to continue"))
+  # Bester season_radius:
+  #opt_sr = which(scores == min(scores))
+  #print(paste0('Bester season_radius für lead_time of ', lead_time, ' is ', opt_sr))
+}
+
