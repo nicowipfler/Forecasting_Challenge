@@ -86,30 +86,35 @@ dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_dat
 
 
 dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
-  #' DAX Forecast using GARCH(1,1) model with ARMA(1,1) model. Might be modularized further later on
+  #' DAX Forecast using GARCH(1,1) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   # Prepare data
   dax_data = get_dax_data(init_date)
-  dax_data = dax_data[!is.na(dax_data$ret1),]
-  dax_df = dax_data[,c('Date','ret1')]
-  dax_subset = subset(dax_df, as.Date(Date) > '2020-01-01')
-  dax_df = data.frame(dax_subset[,'ret1'])
-  rownames(dax_df) = dax_subset$Date
-  # prep
-  pred_rq = matrix(NA, length(quantile_levels), 5)
+  dax_data = dax_data[!is.na(dax_data$ret5),]
   # Model
   spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
                     mean.model = (list(armaOrder = c(1,1), include.mean = TRUE)),
                     distribution.model = 'std')
-  ugarch_fit = ugarchfit(spec, data = dax_df)
-  # Forecasts
-  ugarch_fc = ugarchforecast(ugarch_fit, n.ahead = 5)
-  pred_rq[,1] = quantile(ugarch_fc, probs=0.025)
-  pred_rq[,2] = quantile(ugarch_fc, probs=0.25)
-  pred_rq[,3] = fitted(ugarch_fc)
-  pred_rq[,4] = quantile(ugarch_fc, probs=0.75)
-  pred_rq[,5] = quantile(ugarch_fc, probs=0.975)
+  # Prepare Output
+  pred_rq = matrix(NA, length(quantile_levels), 5)
+  for (i in 1:5){
+    # Prepare Data for ret_i
+    retx = paste0('ret',i)
+    dax_df = dax_data[,c('Date',retx)]
+    dax_subset = subset(dax_df, as.Date(Date) > '2020-01-01')
+    dax_df = data.frame(dax_subset[,retx])
+    rownames(dax_df) = dax_subset$Date
+    # Fit Model
+    ugarch_fit = ugarchfit(spec, data = dax_df)
+    # Forecasts
+    ugarch_fc = ugarchforecast(ugarch_fit, n.ahead = i)
+    pred_rq[i,1] = quantile(ugarch_fc, probs=0.025)[i]
+    pred_rq[i,2] = quantile(ugarch_fc, probs=0.25)[i]
+    pred_rq[i,3] = fitted(ugarch_fc)[i]
+    pred_rq[i,4] = quantile(ugarch_fc, probs=0.75)[i]
+    pred_rq[i,5] = quantile(ugarch_fc, probs=0.975)[i]
+  }
   return(pred_rq)
 }
