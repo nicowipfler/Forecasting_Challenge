@@ -93,13 +93,13 @@ data = data[complete.cases(data),]
 dates = data$Date
 amount_data = length(dates)
 # Prepare matrix for scores
-length_scores = matrix(nrow=191,ncol=2)
+length_scores = matrix(nrow=1491,ncol=2)
 # Quantile Levels
 quantile_levels = c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9) 
 # First implementation: c(0.05,0.25,0.5,0.75,0.975), but for this analysis they should be equidistant
 
 # For each rolling_window length:
-for (window_length in 10:200){
+for (window_length in 10:1500){
   # Split Data into sections of length (window_length+5)
   section_size = window_length + 5
   amount_sections = floor(amount_data / section_size)
@@ -422,3 +422,141 @@ for (n_lead_time in 1:5){
   #print(paste0('Bester season_radius für lead_time of ', lead_time, ' is ', opt_sr))
 }
 
+
+# WEEK 4: Additional regressors for weather -------------------------------
+
+
+
+source('toolkit.R')
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
+source('model_temp.R')
+# Start with temp
+data_temp = get_hist_temp_data()
+data_temp
+# Get other vars
+data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+load(paste0(data_dir, "icon_eps_clct.RData"))
+data_clct = data_icon_eps
+rm(data_icon_eps)
+data_clct
+data_clct$obs[!is.na(data_clct$obs)]
+# clct obs nur NA, hier gibt es nur ensemble forecasts
+load(paste0(data_dir, "icon_eps_mslp.RData"))
+data_mslp = data_icon_eps
+rm(data_icon_eps)
+data_mslp
+# pressure available
+load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+data_aswdir_s = data_icon_eps
+rm(data_icon_eps)
+data_aswdir_s
+# short wave radiation available
+plot(obs~obs_tm, data=data_aswdir_s)
+data_temp
+
+# For horizon of 36:
+data_temp_36 = subset(data_temp, fcst_hour==36)
+data_rad_36 = subset(data_aswdir_s, fcst_hour==36)
+plot(obs~obs_tm, data=data_rad_36)
+points(obs~obs_tm, data=data_temp_36)
+test = merge(x=data_temp_36, y=data_rad_36, by="obs_tm")
+plot(obs.x ~ obs.y, data=test)
+# Is there correlation?
+cor.test(test$obs.x,test$obs.y,method='pearson',use="complete.obs")
+# YES (as expected)
+# But is there also usage for forecasting? E.g. is there correlation on lag (in this case) 36?
+temp = test$obs.x
+temp = temp[37:length(temp)]
+length(temp)
+rad = test$obs.y
+rad = rad[1:(length(rad)-36)]
+length(rad)
+# Is there correlation?
+cor.test(rad,temp,method='pearson',use="complete.obs")
+# At least there is correlation! So it might be useful for forecasting!
+
+# Lets also try for horizon 84 (max)
+data_temp_84 = subset(data_temp, fcst_hour==84)
+data_rad_84 = subset(data_aswdir_s, fcst_hour==84)
+test_84 = merge(x=data_temp_84, y=data_rad_84, by="obs_tm")
+temp_84 = test_84$obs.x
+temp_84 = temp_84[37:length(temp_84)]
+length(temp_84)
+rad_84 = test_84$obs.y
+rad_84 = rad[1:(length(rad_84)-36)]
+length(rad_84)
+# Is there correlation?
+cor.test(rad_84,temp_84,method='pearson',use="complete.obs")
+# YES!
+# SO IT IS JUSTIFIED TO INCLUDE RADIATION TO REGRESSION
+
+# TEST FUNCTION
+temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  t2m_data_raw = get_hist_temp_data()
+  
+  #NEW# get rad data historic
+  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  data_aswdir_s = data_icon_eps
+  
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  # Get rid of empty first and last row
+  new_fcst[,1] = NULL
+  new_fcst[,ncol(new_fcst)] = NULL
+  
+  #NEW# get current rad data
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad[,1] = NULL
+  new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  
+  # Prepare Output Data
+  fcst_temp = matrix(ncol = 5, nrow = 5)
+  # MODEL
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # create dataset with ensemble predictions and observations corresponding to current lead time
+    t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
+    t2m_data = t2m_data[!is.na(t2m_data$obs),]
+    
+    #NEW# get rad data for forecast horizon
+    rad_data = subset(data_aswdir_s, fcst_hour == lead_time)
+    rad_data = rad_data[!is.na(rad_data$obs),]
+    
+    t2m_data$ens_sd = sqrt(t2m_data$ens_var)
+    
+    #NEW# Merge data temp and rad
+    test = merge(x=t2m_data, y=rad_data, by="obs_tm")
+    
+    #CHANGED# evaluate model on full historic data (with corresponding lead_time)
+    t2m_model = crch(obs.x ~ ens_mean.x|ens_sd + ens_mean.y, #TODO Muss ens_mean.y vor '|', damit es nicht als Parameter der Heteroskedastizität gewertet wird?
+                          data = test,
+                          dist = "gaussian",
+                          link.scale = "log",
+                          type = "crps")
+    
+    # extract current forecasts for targeted lead_time
+    ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+    ens_fc = as.numeric(ens_fc)
+    
+    #NEW# extract current forecasts of rad
+    ens_fc_rad = new_fcst_rad[new_fcst_rad$fcst_hour == lead_time,][2:ncol(new_fcst_rad)]
+    ens_fc_rad = as.numeric(ens_fc_rad)
+    
+    #CHANEGED# forecast with EMOS model
+    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_rad))
+    t2m_model_loc = predict(t2m_model,
+                                 pred_df,
+                                 type = "location")
+    t2m_model_sc = predict(t2m_model,
+                                pred_df,
+                                type = "scale")
+    t2m_model_pred = qnorm(quantile_levels, t2m_model_loc, t2m_model_sc)
+    # Write to Output Data
+    fcst_temp[i,] = t2m_benchmark2_pred
+    i = i+1
+  }
+  # Forecasts ready to write to csv
+  return(fcst_temp)
+}
