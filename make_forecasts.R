@@ -22,31 +22,52 @@ source('create_csv.R')
 # Forecasts ---------------------------------------------------------------
 
 
-# DAX
+date = '2021-11-10'
+
+
+### DAX
+
+
+## QUANTILE REGRESSION
 rolling_window_dax = 150 # Aus model_enhancement: 150 sollte optimal sein
-fcst_dax = dax_quantreg('2021-11-03', transpose=TRUE, rolling_window=rolling_window_dax)
+#fcst_dax = dax_quantreg('2021-11-03', transpose=TRUE, rolling_window=rolling_window_dax)
+
+## GARCH
+fcst_dax = dax_ugarch(date)
+
+# Evaluation
 fcst_dax
-plot_forecasts_dax('2021-11-03', fcst_dax, history_size=rolling_window_dax, model_name='quantile regression (basic)')
+plot_forecasts_dax(date, fcst_dax, history_size=rolling_window_dax, model_name='quantile regression (basic)')
 
-# Temperature
-history_weather = 10
-fcst_temp = temp_emos('2021-11-03')
+
+### Temperature
+
+
+## EMOS
+fcst_temp = temp_emos(date)
 fcst_temp
-#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
-plot_forecasts_weather('2021-11-03', fcst_temp, history_size=history_weather, model_name='EMOS using normal distribution', 'air_temperature')
 
-# Wind
-#fcst_wind = wind_emos_tn('2021-10-27')
-#fcst_wind
+# Evaluation
+history_weather = 10
+plot_forecasts_weather(date, fcst_temp, history_size=history_weather, model_name='EMOS using normal distribution', 'air_temperature')
 #TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
-#plot_forecasts_weather('2021-10-27', fcst_wind, history_size=history_weather, model_name='EMOS using truncated normal distribution', 'wind')
 
-# Wind using Truncated Logistic
-fcst_wind = wind_emos_tl('2021-11-03')
+
+### Wind
+
+
+## EMOS with truncated normal
+#fcst_wind = wind_emos_tn(date)
+
+## EMOS with truncated logistic
+fcst_wind = wind_emos_tl(date)
 fcst_wind
-#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
-plot_forecasts_weather('2021-11-03', fcst_wind, history_size=history_weather, model_name='EMOS using truncated normal distribution', 'wind')
 
-# Export
-create_csv("2021-11-03", fcst_dax, fcst_temp, fcst_wind)
+# Evaluation
+plot_forecasts_weather(date, fcst_wind, history_size=history_weather, model_name='EMOS using truncated normal distribution', 'wind')
+#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
+
+
+### Export
+create_csv(date, fcst_dax, fcst_temp, fcst_wind)
 
