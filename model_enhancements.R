@@ -747,3 +747,266 @@ for (n_horizon in 1:5){
 cor_table = tableGrob(cors)
 grid.arrange(plot1, plot2, plot3, plot4, plot5, cor_table, nrow = 3)
 # There is a correlation indeed, so it might be included as additional regressor
+
+
+# WEEK 4: Models including multiple regressors for temp -------------------
+
+
+temp_emos_multi_rad = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  t2m_data_raw = get_hist_temp_data()
+  # get historic rad data
+  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  data_aswdir_s = data_icon_eps
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  # Get rid of empty first and last row
+  new_fcst[,1] = NULL
+  new_fcst[,ncol(new_fcst)] = NULL
+  # get current rad data
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad[,1] = NULL
+  new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  # Prepare Output Data
+  fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
+  # MODEL
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # create dataset with ensemble predictions and observations corresponding to current lead time
+    t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
+    t2m_data = t2m_data[!is.na(t2m_data$obs),]
+    # get rad data for forecast horizon
+    rad_data = subset(data_aswdir_s, fcst_hour == lead_time)
+    rad_data = rad_data[!is.na(rad_data$obs),]
+    t2m_data$ens_sd = sqrt(t2m_data$ens_var)
+    # Merge data temp and rad
+    merge = merge(x=t2m_data, y=rad_data, by="obs_tm")
+    # evaluate model on full historic data (with corresponding lead_time)
+    t2m_model = crch(obs.x ~ ens_mean.y + ens_mean.x|ens_sd, 
+                     data = merge,
+                     dist = "gaussian",
+                     link.scale = "log",
+                     type = "crps")
+    
+    # extract current forecasts for targeted lead_time
+    ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+    ens_fc = as.numeric(ens_fc)
+    # extract current forecasts of rad
+    ens_fc_rad = new_fcst_rad[new_fcst_rad$fcst_hour == lead_time,][2:ncol(new_fcst_rad)]
+    ens_fc_rad = as.numeric(ens_fc_rad)
+    # forecast with EMOS model
+    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_rad))
+    t2m_model_loc = predict(t2m_model,
+                            pred_df,
+                            type = "location")
+    t2m_model_sc = predict(t2m_model,
+                           pred_df,
+                           type = "scale")
+    t2m_model_pred = qnorm(quantile_levels, t2m_model_loc, t2m_model_sc)
+    # Write to Output Data
+    fcst_temp[i,] = t2m_model_pred
+    i = i+1
+  }
+  # Forecasts ready to write to csv
+  return(fcst_temp)
+}
+temp_emos_multi_rad_wind = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  # get historic temp data
+  t2m_data_raw = get_hist_temp_data()
+  # get historic rad data
+  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  data_aswdir_s = data_icon_eps
+  # get historic wind data
+  wind_raw = get_hist_wind_data()
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  # Get rid of empty first and last row
+  new_fcst[,1] = NULL
+  new_fcst[,ncol(new_fcst)] = NULL
+  # get current rad data
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad[,1] = NULL
+  new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  # get current wind data
+  new_fcst_wind = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_wind[,1] = NULL
+  new_fcst_wind[,ncol(new_fcst_wind)] = NULL
+  # Prepare Output Data
+  fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
+  # MODEL
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # create dataset with ensemble predictions and observations corresponding to current lead time
+    t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
+    t2m_data = t2m_data[!is.na(t2m_data$obs),]
+    t2m_data$ens_sd = sqrt(t2m_data$ens_var)
+    # get rad data for forecast horizon
+    rad_data = subset(data_aswdir_s, fcst_hour == lead_time)
+    rad_data = rad_data[!is.na(rad_data$obs),]
+    # get wind data for forecast horizon
+    wind_data = subset(wind_raw, fcst_hour == lead_time)
+    wind_data = wind_data[!is.na(wind_data$obs),]
+    # Merge data temp and rad
+    merge = merge(x=t2m_data, y=rad_data, by="obs_tm")
+    merge = merge(x=merge, y=wind_data, by="obs_tm")
+    # evaluate model on full historic data (with corresponding lead_time)
+    t2m_model = crch(obs.x ~ ens_mean + ens_mean.y + ens_mean.x|ens_sd, 
+                     data = merge,
+                     dist = "gaussian",
+                     link.scale = "log",
+                     type = "crps")
+    
+    # extract current forecasts for targeted lead_time
+    ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+    ens_fc = as.numeric(ens_fc)
+    # extract current forecasts of rad
+    ens_fc_rad = new_fcst_rad[new_fcst_rad$fcst_hour == lead_time,][2:ncol(new_fcst_rad)]
+    ens_fc_rad = as.numeric(ens_fc_rad)
+    # extract current forecasts of wind
+    ens_fc_wind = new_fcst_wind[new_fcst_wind$fcst_hour == lead_time,][2:ncol(new_fcst_wind)]
+    ens_fc_wind = as.numeric(ens_fc_wind)
+    # forecast with EMOS model
+    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_rad), ens_mean = mean(ens_fc_wind))
+    t2m_model_loc = predict(t2m_model,
+                            pred_df,
+                            type = "location")
+    t2m_model_sc = predict(t2m_model,
+                           pred_df,
+                           type = "scale")
+    t2m_model_pred = qnorm(quantile_levels, t2m_model_loc, t2m_model_sc)
+    # Write to Output Data
+    fcst_temp[i,] = t2m_model_pred
+    i = i+1
+  }
+  # Forecasts ready to write to csv
+  return(fcst_temp)
+}
+
+# EVALUATE MODELS FOR ONLY TWO AVAILABLE DATES USING CRPS APPROX
+crps = matrix(nrow=1,ncol=5)
+crps[1] = suppressWarnings(evaluate_model_temp(temp_emos))
+crps[2] = suppressWarnings(evaluate_model_temp(temp_emos_multi_rad))
+crps[3] = suppressWarnings(evaluate_model_temp(temp_emos_multi_rad_wind))
+crps
+
+# check if model including wind differs greatly
+temp_emos_multi_rad('2021-11-03')
+temp_emos_multi_rad_wind('2021-11-03')
+# no, but approx of CRPS is worse.
+# SO WIND SHOULD NOT BE INCLUDED
+# Try rad + clct for daytimes
+temp_emos_multi_rad_clct = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  # get historic temp data
+  t2m_data_raw = get_hist_temp_data()
+  # get historic rad data
+  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  data_aswdir_s = data_icon_eps
+  # get historic rad data
+  load(paste0(data_dir, "icon_eps_clct.RData"))
+  clct_raw = data_icon_eps
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  # Get rid of empty first and last row
+  new_fcst[,1] = NULL
+  new_fcst[,ncol(new_fcst)] = NULL
+  # get current rad data
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad[,1] = NULL
+  new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  # get current clct data
+  new_fcst_clct = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_clct_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_clct[,1] = NULL
+  new_fcst_clct[,ncol(new_fcst_clct)] = NULL
+  # Prepare Output Data
+  fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
+  # MODEL
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    if(lead_time == 48 | lead_time == 72){
+      # create dataset with ensemble predictions and observations corresponding to current lead time
+      t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
+      t2m_data = t2m_data[!is.na(t2m_data$obs),]
+      t2m_data$ens_sd = sqrt(t2m_data$ens_var)
+      # get rad data for forecast horizon
+      rad_data = subset(data_aswdir_s, fcst_hour == lead_time)
+      rad_data = rad_data[!is.na(rad_data$obs),]
+      # get wind data for forecast horizon
+      clct_data = subset(clct_raw, fcst_hour == lead_time)
+      clct_data = clct_data[!is.na(clct_data$obs),]
+      # Merge data temp and rad
+      merge = merge(x=t2m_data, y=rad_data, by="obs_tm")
+      merge = merge(x=merge, y=clct_raw, by="obs_tm")
+      # evaluate model on full historic data (with corresponding lead_time)
+      t2m_model = crch(obs.x ~ ens_mean + ens_mean.y + ens_mean.x|ens_sd, 
+                       data = merge,
+                       dist = "gaussian",
+                       link.scale = "log",
+                       type = "crps")
+      
+      # extract current forecasts for targeted lead_time
+      ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+      ens_fc = as.numeric(ens_fc)
+      # extract current forecasts of rad
+      ens_fc_rad = new_fcst_rad[new_fcst_rad$fcst_hour == lead_time,][2:ncol(new_fcst_rad)]
+      ens_fc_rad = as.numeric(ens_fc_rad)
+      # extract current forecasts of wind
+      ens_fc_clct = new_fcst_clct[new_fcst_clct$fcst_hour == lead_time,][2:ncol(new_fcst_clct)]
+      ens_fc_clct = as.numeric(ens_fc_clct)
+      # forecast with EMOS model
+      pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_rad), ens_mean = mean(ens_fc_clct))
+      t2m_model_loc = predict(t2m_model,
+                              pred_df,
+                              type = "location")
+      t2m_model_sc = predict(t2m_model,
+                             pred_df,
+                             type = "scale")
+      t2m_model_pred = qnorm(quantile_levels, t2m_model_loc, t2m_model_sc)
+    } else {
+      # create dataset with ensemble predictions and observations corresponding to current lead time
+      t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
+      t2m_data = t2m_data[!is.na(t2m_data$obs),]
+      # get rad data for forecast horizon
+      rad_data = subset(data_aswdir_s, fcst_hour == lead_time)
+      rad_data = rad_data[!is.na(rad_data$obs),]
+      t2m_data$ens_sd = sqrt(t2m_data$ens_var)
+      # Merge data temp and rad
+      merge = merge(x=t2m_data, y=rad_data, by="obs_tm")
+      # evaluate model on full historic data (with corresponding lead_time)
+      t2m_model = crch(obs.x ~ ens_mean.y + ens_mean.x|ens_sd, 
+                       data = merge,
+                       dist = "gaussian",
+                       link.scale = "log",
+                       type = "crps")
+      # extract current forecasts for targeted lead_time
+      ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+      ens_fc = as.numeric(ens_fc)
+      # extract current forecasts of rad
+      ens_fc_rad = new_fcst_rad[new_fcst_rad$fcst_hour == lead_time,][2:ncol(new_fcst_rad)]
+      ens_fc_rad = as.numeric(ens_fc_rad)
+      # forecast with EMOS model
+      pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_rad))
+      t2m_model_loc = predict(t2m_model,
+                              pred_df,
+                              type = "location")
+      t2m_model_sc = predict(t2m_model,
+                             pred_df,
+                             type = "scale")
+      t2m_model_pred = qnorm(quantile_levels, t2m_model_loc, t2m_model_sc)
+    }
+    # Write to Output Data
+    fcst_temp[i,] = t2m_model_pred
+    i = i+1
+  }
+  # Forecasts ready to write to csv
+  return(fcst_temp)
+}
+
+crps[4] = suppressWarnings(evaluate_model_temp(temp_emos_multi_rad_clct))
+crps
+# Better than adding wind on top, but worse than just adding rad
+# SO MSLP FOR NIGHT WONT BE TRIED (EVEN SMALLER CORRELATION)
