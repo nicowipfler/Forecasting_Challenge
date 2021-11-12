@@ -1,4 +1,7 @@
 # Script containing several exploratory analyses aiming to improve existing models or to find new ones
+source('toolkit.R')
+source('model_enhancements_toolkit.R')
+#
 
 
 # WEEK 2: Test better fitting distributions for EMOS wind -----------------
@@ -426,9 +429,8 @@ for (n_lead_time in 1:5){
 # WEEK 4: Additional regressors for weather -------------------------------
 
 
-
 source('toolkit.R')
-load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2'))
 source('model_temp.R')
 # Start with temp
 data_temp = get_hist_temp_data()
@@ -496,7 +498,7 @@ cor.test(test$obs.x,test$ens_mean.y,method='pearson',use="complete.obs")
 cor.test(test$ens_mean.x,test$ens_mean.y,method='pearson',use="complete.obs")
 # Yes, and also much, but slightly less than between ens mean rad and obs temp, so it might be useful for forecasting anyways
 
-# TEST FUNCTION
+# TEST FUNCTIONS
 temp_emos_multivariate_double_sd = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   t2m_data_raw = get_hist_temp_data()
   
@@ -567,7 +569,6 @@ temp_emos_multivariate_double_sd = function(init_date, quantile_levels=c(0.025,0
   # Forecasts ready to write to csv
   return(fcst_temp)
 }
-
 temp_emos_multivariate_one_sd = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   t2m_data_raw = get_hist_temp_data()
   
@@ -644,3 +645,105 @@ eval[1,2] = evaluate_model_temp(temp_emos_multivariate_double_sd)
 eval[1,3] = evaluate_model_temp(temp_emos_multivariate_one_sd)
 eval
 # Also: Nur Standardabweichung von ens temp!
+
+
+# WEEK 4: Selection of regressors for multivariate temp EMOS model --------
+
+
+source('model_temp.R')
+# Get temp
+data_temp = get_hist_temp_data()
+# Get cloud cover
+data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+load(paste0(data_dir, "icon_eps_clct.RData"))
+data_clct = data_icon_eps
+# Get mean sea level pressure
+load(paste0(data_dir, "icon_eps_mslp.RData"))
+data_mslp = data_icon_eps
+# Get downward radiation
+load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+data_aswdir_s = data_icon_eps
+rm(data_icon_eps)
+
+# FIRST CHECK: CORRELATION BETWEEN TEMP OBS AND MEAN ENSEMBLE VALUES FOR THE DIFFERENT VARS
+
+horizons = c(36,48,60,72,84)
+cors = matrix(nrow=5,ncol=2)
+rownames(cors) = c('Pearson-Correlation', 'p-value')
+colnames(cors) = horizons
+
+library('gridExtra')
+library('ggplot2')
+
+# Check Correlation of temp and radiation
+for (n_horizon in 1:5){
+  horizon = horizons[n_horizon]
+  temp = subset(data_temp, fcst_hour==horizon)
+  other = subset(data_aswdir_s, fcst_hour==horizon)
+  merged = merge(x=temp, y=other, by="obs_tm")
+  test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
+  cors[n_horizon,1] = test$estimate
+  cors[n_horizon,2] = test$p.value
+  nam = paste('plot',n_horizon,sep='')
+  assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
+}
+# cors
+cor_table = tableGrob(cors)
+grid.arrange(plot1, plot2, plot3, plot4, plot5, cor_table, nrow = 3)
+# Of course correlation is stronger at 1200, when sun is shining, but also at night statistically significant (alltough high variance!)
+
+# Check Correlation of temp and cloud cover
+for (n_horizon in 1:5){
+  horizon = horizons[n_horizon]
+  temp = subset(data_temp, fcst_hour==horizon)
+  other = subset(data_clct, fcst_hour==horizon)
+  merged = merge(x=temp, y=other, by="obs_tm")
+  test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
+  cors[n_horizon,1] = test$estimate
+  cors[n_horizon,2] = test$p.value
+  nam = paste('plot',n_horizon,sep='')
+  assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
+}
+# cors
+cor_table = tableGrob(cors)
+grid.arrange(plot1, plot2, plot3, plot4, plot5, cor_table, nrow = 3)
+# At night, the variables are statisticalyy uncorrelated! At day, there might be a small correlation, that could be tried to fit into the model
+
+# Check Correlation of temp and mean sea level pressure
+for (n_horizon in 1:5){
+  horizon = horizons[n_horizon]
+  temp = subset(data_temp, fcst_hour==horizon)
+  other = subset(data_mslp, fcst_hour==horizon)
+  merged = merge(x=temp, y=other, by="obs_tm")
+  test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
+  cors[n_horizon,1] = test$estimate
+  cors[n_horizon,2] = test$p.value
+  nam = paste('plot',n_horizon,sep='')
+  assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
+}
+# cors
+cor_table = tableGrob(cors)
+grid.arrange(plot1, plot2, plot3, plot4, plot5, cor_table, nrow = 3)
+# At day: Statistically uncorrelated, however at night there i a small correlation, that could be tried to fit into the model
+
+# ALL IN ALL: CHOOSING SHORTWAVE DOWNWARD RADIATION AS FIRST ADDITIONAL REGRESSOR IS RATIONAL
+# CLCT MAY BE USED TO ENHANCE FORECASTS AT DAY, MSLP AT NIGHT
+
+# Additionally: Check wind
+source('model_wind.R')
+data_wind = get_hist_wind_data()
+for (n_horizon in 1:5){
+  horizon = horizons[n_horizon]
+  temp = subset(data_temp, fcst_hour==horizon)
+  other = subset(data_wind, fcst_hour==horizon)
+  merged = merge(x=temp, y=other, by="obs_tm")
+  test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
+  cors[n_horizon,1] = test$estimate
+  cors[n_horizon,2] = test$p.value
+  nam = paste('plot',n_horizon,sep='')
+  assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
+}
+# cors
+cor_table = tableGrob(cors)
+grid.arrange(plot1, plot2, plot3, plot4, plot5, cor_table, nrow = 3)
+# There is a correlation indeed, so it might be included as additional regressor
