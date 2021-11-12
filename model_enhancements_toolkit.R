@@ -73,6 +73,21 @@ get_obs = function(variable,init_date){
   return(observations)
 }
 
+approx_crps = function(quantile_levels, fc, obs){
+  #' Function that returns an approximation of the CRPS of given forecasts & obs at given quantile level (should be equidistant grid!)
+  #' quantile_levels: vector containing quantile levels as numeric values
+  #' fc: matrix containing forecasts. rows: horizons (must be 5!), columns: quantile_levels
+  #' obs: vector containing observations (ordered) as numeric values
+  
+  scores = matrix(nrow=5, ncol=length(quantile_levels))
+  for (n_horizon in 1:5){
+    for (n_quantile in 1:length(quantile_levels)){
+      scores[n_horizon,n_quantile] = quantile_score(quantile_levels[n_quantile],fc[n_horizon,n_quantile],obs[n_horizon])
+    }
+  }
+  return(mean(scores))
+}
+
 evaluate_model_temp = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)){
   #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
@@ -81,32 +96,18 @@ evaluate_model_temp = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,
   # Preparations
   init_dates = c('2021-10-27', '2021-11-03')
   scores_dates = matrix(nrow=length(init_dates), ncol=1)
-  
   # Iterate over init_dates, for which we have all the data
   for (i in 1:length(init_dates)){
-    
+    # Prep
     init_date = init_dates[i]
-    
     # Get observations at each init_date that we have all information for (as of now, just two dates)
-    
-    
+    observations = get_obs('air_temperature',init_date)
     # Get Forecasts of the given model for given init_date
     forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels)
-    
     # Compare to obs: Compute Quantile Scores / Approx- CRPS
-    scores = matrix(nrow=5, ncol=length(quantile_levels))
-    for (n_horizon in 1:5){
-      for (n_quantile in 1:length(quantile_levels)){
-        scores[n_horizon,n_quantile] = quantile_score(quantile_levels[n_quantile],forecasts[n_horizon,n_quantile],observations[n_horizon])
-      }
-    }
-    scores_dates[i] = mean(scores)
-    #TODO? OWN FUNCTION FOR APPROX OF CRPS by using quantile score?
-    #TODO? OWN FUNCTION FOR GENERATION OF OBS?
+    scores_dates[i] = approx_crps(quantile_levels, forecasts, observations)
   }
-  
   final_score = mean(scores_dates)
-  
   return(final_score)
 }
 
