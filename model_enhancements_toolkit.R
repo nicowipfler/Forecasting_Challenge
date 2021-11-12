@@ -36,3 +36,49 @@ generate_times = function(date){
   }
   return(dates)
 }
+
+evaluate_model_temp = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)){
+  #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
+  #' model_func: Function that puts out the models forecasts, e.g. emos_temp
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  
+  # Preparations
+  init_dates = c('2021-10-27', '2021-11-03')
+  scores_dates = matrix(nrow=length(init_dates), ncol=1)
+  obs_data = readDWD('C:/dev/Forecasting_Challenge/DWDdata/hourly_air_temperature_recent_stundenwerte_TU_00433_akt.zip')
+  
+  # Iterate over init_dates, for which we have all the data
+  for (i in 1:length(init_dates)){
+    
+    init_date = init_dates[i]
+    
+    # Get observations at each init_date that we have all information for (as of now, just two dates)
+    dates = generate_times(init_date)
+    observations = subset(obs_data,
+                          MESS_DATUM == dates[1]|
+                            MESS_DATUM == dates[2]|
+                            MESS_DATUM == dates[3]|
+                            MESS_DATUM == dates[4]|
+                            MESS_DATUM == dates[5])$TT_TU
+    
+    # Get Forecasts of the given model for given init_date
+    forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels)
+    
+    # Compare to obs: Compute Quantile Scores / Approx- CRPS
+    scores = matrix(nrow=5, ncol=length(quantile_levels))
+    for (n_horizon in 1:5){
+      for (n_quantile in 1:length(quantile_levels)){
+        scores[n_horizon,n_quantile] = quantile_score(quantile_levels[n_quantile],forecasts[n_horizon,n_quantile],observations[n_horizon])
+      }
+    }
+    scores_dates[i] = mean(scores)
+    #TODO? OWN FUNCTION FOR APPROX OF CRPS by using quantile score?
+    #TODO? OWN FUNCTION FOR GENERATION OF OBS?
+  }
+  
+  final_score = mean(scores_dates)
+  
+  return(final_score)
+}
+
+evaluate_model_temp(temp_emos)
