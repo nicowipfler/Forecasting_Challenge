@@ -37,6 +37,42 @@ generate_times = function(date){
   return(dates)
 }
 
+get_obs = function(variable,init_date){
+  #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
+  #' init_date: String containing the starting date of observations (always get the observations that match the forecast horizon on this init_date!)
+  
+  dwd_url = selectDWD(
+    name = "Berlin-Tempelhof",
+    res = "hourly",
+    per = "recent",
+    var = variable
+  )
+  dataDWD(dwd_url)
+  # NOTE: OLD DATA MIGHT HAVE TO BE DELETED MANUALLY
+  if (variable=='wind'){
+    obs_data = readDWD('C:/dev/Forecasting_Challenge/DWDdata/hourly_wind_recent_stundenwerte_FF_00433_akt.zip')
+  } else if (variable=='air_temperature'){
+    obs_data = readDWD('C:/dev/Forecasting_Challenge/DWDdata/hourly_air_temperature_recent_stundenwerte_TU_00433_akt.zip')
+  }
+  dates = generate_times(init_date)
+  if (variable=='wind'){
+    observations = subset(obs_data,
+                          MESS_DATUM == dates[1]|
+                            MESS_DATUM == dates[2]|
+                            MESS_DATUM == dates[3]|
+                            MESS_DATUM == dates[4]|
+                            MESS_DATUM == dates[5])$F
+  } else if (variable=='air_temperature'){
+    observations = subset(obs_data,
+                          MESS_DATUM == dates[1]|
+                            MESS_DATUM == dates[2]|
+                            MESS_DATUM == dates[3]|
+                            MESS_DATUM == dates[4]|
+                            MESS_DATUM == dates[5])$TT_TU
+  }
+  return(observations)
+}
+
 evaluate_model_temp = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)){
   #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
@@ -45,7 +81,6 @@ evaluate_model_temp = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,
   # Preparations
   init_dates = c('2021-10-27', '2021-11-03')
   scores_dates = matrix(nrow=length(init_dates), ncol=1)
-  obs_data = readDWD('C:/dev/Forecasting_Challenge/DWDdata/hourly_air_temperature_recent_stundenwerte_TU_00433_akt.zip')
   
   # Iterate over init_dates, for which we have all the data
   for (i in 1:length(init_dates)){
@@ -53,13 +88,7 @@ evaluate_model_temp = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,
     init_date = init_dates[i]
     
     # Get observations at each init_date that we have all information for (as of now, just two dates)
-    dates = generate_times(init_date)
-    observations = subset(obs_data,
-                          MESS_DATUM == dates[1]|
-                            MESS_DATUM == dates[2]|
-                            MESS_DATUM == dates[3]|
-                            MESS_DATUM == dates[4]|
-                            MESS_DATUM == dates[5])$TT_TU
+    
     
     # Get Forecasts of the given model for given init_date
     forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels)
