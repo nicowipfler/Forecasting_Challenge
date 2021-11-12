@@ -460,38 +460,44 @@ data_rad_36 = subset(data_aswdir_s, fcst_hour==36)
 plot(obs~obs_tm, data=data_rad_36)
 points(obs~obs_tm, data=data_temp_36)
 test = merge(x=data_temp_36, y=data_rad_36, by="obs_tm")
-plot(obs.x ~ obs.y, data=test)
+test
+plot(obs.x ~ ens_mean.y, data=test)
 # Is there correlation?
-cor.test(test$obs.x,test$obs.y,method='pearson',use="complete.obs")
+cor.test(test$obs.x,test$ens_mean.y,method='pearson',use="complete.obs")
 # YES (as expected)
-# But is there also usage for forecasting? E.g. is there correlation on lag (in this case) 36?
-temp = test$obs.x
-temp = temp[37:length(temp)]
-length(temp)
-rad = test$obs.y
-rad = rad[1:(length(rad)-36)]
-length(rad)
-# Is there correlation?
-cor.test(rad,temp,method='pearson',use="complete.obs")
-# At least there is correlation! So it might be useful for forecasting!
 
-# Lets also try for horizon 84 (max)
-data_temp_84 = subset(data_temp, fcst_hour==84)
-data_rad_84 = subset(data_aswdir_s, fcst_hour==84)
-test_84 = merge(x=data_temp_84, y=data_rad_84, by="obs_tm")
-temp_84 = test_84$obs.x
-temp_84 = temp_84[37:length(temp_84)]
-length(temp_84)
-rad_84 = test_84$obs.y
-rad_84 = rad[1:(length(rad_84)-36)]
-length(rad_84)
+## THIS SECTION IS SUPERFLUOUS, BECAUSE ENS MEAN IS USED FOR FORECASTING
+# But is there also usage for forecasting? E.g. is there correlation on lag (in this case) 36?
+#temp = test$obs.x
+#temp = temp[37:length(temp)]
+#length(temp)
+#rad = test$obs.y
+#rad = rad[1:(length(rad)-36)]
+#length(rad)
 # Is there correlation?
-cor.test(rad_84,temp_84,method='pearson',use="complete.obs")
+#cor.test(rad,temp,method='pearson',use="complete.obs")
+# At least there is correlation! So it might be useful for forecasting!
+# Lets also try for horizon 84 (max)
+#data_temp_84 = subset(data_temp, fcst_hour==84)
+#data_rad_84 = subset(data_aswdir_s, fcst_hour==84)
+#test_84 = merge(x=data_temp_84, y=data_rad_84, by="obs_tm")
+#temp_84 = test_84$obs.x
+#temp_84 = temp_84[37:length(temp_84)]
+#length(temp_84)
+#rad_84 = test_84$obs.y
+#rad_84 = rad_84[1:(length(rad_84)-36)]
+#length(rad_84)
+# Is there correlation?
+#cor.test(rad_84,temp_84,method='pearson',use="complete.obs")
 # YES!
 # SO IT IS JUSTIFIED TO INCLUDE RADIATION TO REGRESSION
 
+## RATHER TEST: Correlation between ens mean temp und rad
+cor.test(test$ens_mean.x,test$ens_mean.y,method='pearson',use="complete.obs")
+# Yes, and also much, but slightly less than between ens mean rad and obs temp, so it might be useful for forecasting anyways
+
 # TEST FUNCTION
-temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+temp_emos_multivariate_double_sd = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   t2m_data_raw = get_hist_temp_data()
   
   #NEW# get rad data historic
@@ -512,7 +518,78 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   new_fcst_rad[,ncol(new_fcst_rad)] = NULL
   
   # Prepare Output Data
-  fcst_temp = matrix(ncol = 5, nrow = 5)
+  fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
+  # MODEL
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # create dataset with ensemble predictions and observations corresponding to current lead time
+    t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
+    t2m_data = t2m_data[!is.na(t2m_data$obs),]
+    
+    #NEW# get rad data for forecast horizon
+    rad_data = subset(data_aswdir_s, fcst_hour == lead_time)
+    rad_data = rad_data[!is.na(rad_data$obs),]
+    rad_data$ens_sd = sqrt(rad_data$ens_var)
+    
+    t2m_data$ens_sd = sqrt(t2m_data$ens_var)
+    
+    #NEW# Merge data temp and rad
+    test = merge(x=t2m_data, y=rad_data, by="obs_tm")
+    
+    #CHANGED# evaluate model on full historic data (with corresponding lead_time)
+    t2m_model = crch(obs.x ~ ens_mean.y + ens_mean.x|ens_sd.x + ens_sd.y, 
+                          data = test,
+                          dist = "gaussian",
+                          link.scale = "log",
+                          type = "crps")
+    
+    # extract current forecasts for targeted lead_time
+    ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+    ens_fc = as.numeric(ens_fc)
+    
+    #NEW# extract current forecasts of rad
+    ens_fc_rad = new_fcst_rad[new_fcst_rad$fcst_hour == lead_time,][2:ncol(new_fcst_rad)]
+    ens_fc_rad = as.numeric(ens_fc_rad)
+    
+    #CHANEGED# forecast with EMOS model
+    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd.x = sd(ens_fc), ens_mean.y = mean(ens_fc_rad), ens_sd.y = sd(ens_fc_rad))
+    t2m_model_loc = predict(t2m_model,
+                                 pred_df,
+                                 type = "location")
+    t2m_model_sc = predict(t2m_model,
+                                pred_df,
+                                type = "scale")
+    t2m_model_pred = qnorm(quantile_levels, t2m_model_loc, t2m_model_sc)
+    # Write to Output Data
+    fcst_temp[i,] = t2m_model_pred
+    i = i+1
+  }
+  # Forecasts ready to write to csv
+  return(fcst_temp)
+}
+
+temp_emos_multivariate_one_sd = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  t2m_data_raw = get_hist_temp_data()
+  
+  #NEW# get rad data historic
+  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  data_aswdir_s = data_icon_eps
+  
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  # Get rid of empty first and last row
+  new_fcst[,1] = NULL
+  new_fcst[,ncol(new_fcst)] = NULL
+  
+  #NEW# get current rad data
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad[,1] = NULL
+  new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  
+  # Prepare Output Data
+  fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
   # MODEL
   i = 1
   for (lead_time in c(36,48,60,72,84)){
@@ -530,11 +607,11 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
     test = merge(x=t2m_data, y=rad_data, by="obs_tm")
     
     #CHANGED# evaluate model on full historic data (with corresponding lead_time)
-    t2m_model = crch(obs.x ~ ens_mean.x|ens_sd + ens_mean.y, #TODO Muss ens_mean.y vor '|', damit es nicht als Parameter der Heteroskedastizität gewertet wird?
-                          data = test,
-                          dist = "gaussian",
-                          link.scale = "log",
-                          type = "crps")
+    t2m_model = crch(obs.x ~ ens_mean.y + ens_mean.x|ens_sd, 
+                     data = test,
+                     dist = "gaussian",
+                     link.scale = "log",
+                     type = "crps")
     
     # extract current forecasts for targeted lead_time
     ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
@@ -547,16 +624,23 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
     #CHANEGED# forecast with EMOS model
     pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_rad))
     t2m_model_loc = predict(t2m_model,
-                                 pred_df,
-                                 type = "location")
+                            pred_df,
+                            type = "location")
     t2m_model_sc = predict(t2m_model,
-                                pred_df,
-                                type = "scale")
+                           pred_df,
+                           type = "scale")
     t2m_model_pred = qnorm(quantile_levels, t2m_model_loc, t2m_model_sc)
     # Write to Output Data
-    fcst_temp[i,] = t2m_benchmark2_pred
+    fcst_temp[i,] = t2m_model_pred
     i = i+1
   }
   # Forecasts ready to write to csv
   return(fcst_temp)
 }
+
+eval = matrix(nrow=1, ncol=3)
+eval[1,1] = evaluate_model_temp(temp_emos)
+eval[1,2] = evaluate_model_temp(temp_emos_multivariate_double_sd)
+eval[1,3] = evaluate_model_temp(temp_emos_multivariate_one_sd)
+eval
+# Also: Nur Standardabweichung von ens temp!
