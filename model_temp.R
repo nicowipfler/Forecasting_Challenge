@@ -25,7 +25,7 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
   # Prepare Output Data
-  fcst_temp = matrix(ncol = 5, nrow = 5)
+  fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
   # MODEL
   i = 1
   for (lead_time in c(36,48,60,72,84)){
