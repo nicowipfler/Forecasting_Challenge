@@ -1320,3 +1320,75 @@ wind_emos_tl_multi_temp = function(init_date, quantile_levels=c(0.025,0.25,0.5,0
 
 crps[4] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_temp,'wind'))
 crps
+
+
+# WEEK 4: DAX HYPERTUNING -------------------------------------------------
+
+
+evaluate_model_dax(dax_quantreg,quantreg=TRUE)
+evaluate_model_dax(dax_ugarch)
+# So UGARCH is much better than quantreg!
+
+# How can we enhance UGARCH even further?
+dax_ugarch_test = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),garchorder,armaorder){
+  #' DAX Forecast using GARCH(1,1) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  
+  # Prepare data
+  dax_data = get_dax_data(init_date)
+  dax_data = dax_data[!is.na(dax_data$ret5),]
+  # Model
+  spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = garchorder),
+                    mean.model = (list(armaOrder = armaorder, include.mean = TRUE)),
+                    distribution.model = 'std')
+  # Prepare Output
+  pred_rq = matrix(NA, ncol=length(quantile_levels), nrow=5)
+  for (i in 1:5){
+    # Prepare Data for ret_i
+    retx = paste0('ret',i)
+    dax_df = dax_data[,c('Date',retx)]
+    dax_subset = subset(dax_df, as.Date(Date) > '2020-01-01')
+    dax_df = data.frame(dax_subset[,retx])
+    rownames(dax_df) = dax_subset$Date
+    # Fit Model
+    ugarch_fit = ugarchfit(spec, data = dax_df)
+    # Forecasts
+    ugarch_fc = ugarchforecast(ugarch_fit, n.ahead = i)
+    for (n_quantile in 1:length(quantile_levels)){
+      # fitted(ugarch_fc) and quantile(ugarch_fc, 0.5) yield the same value!
+      pred_rq[i,n_quantile] = quantile(ugarch_fc, probs=quantile_levels[n_quantile])[i]
+    }
+    #pred_rq[i,1] = quantile(ugarch_fc, probs=0.025)[i]
+    #pred_rq[i,2] = quantile(ugarch_fc, probs=0.25)[i]
+    #pred_rq[i,3] = fitted(ugarch_fc)[i]
+    #pred_rq[i,4] = quantile(ugarch_fc, probs=0.75)[i]
+    #pred_rq[i,5] = quantile(ugarch_fc, probs=0.975)[i]
+  }
+  return(pred_rq)
+}
+evaluate_model_dax(dax_ugarch_test, garchorder=c(8,8), armaorder=c(1,1))
+# First: Analyze choice of ARMA order (for simplification here: symmetric oders for GARCH and ARMA)
+benchmark = evaluate_model_dax(dax_quantreg,quantreg=TRUE)
+hypertuning_arma = matrix(nrow = 2, ncol = 10)
+for (n_garch in 1:2){
+  for (n_arma in 1:10){
+    hypertuning_arma[n_garch, n_arma] = evaluate_model_dax(dax_ugarch_test, garchorder=c(n_garch,n_garch), armaorder=c(n_arma,n_arma))
+  }
+}
+benchmark
+hypertuning_arma
+# So we see, that ARMA(1,1) is the best choice here
+# Lets proceed with the GARCH order (given ARMA(1,1), so we dont have to restrict to symmetric orders any more)
+hypertuning_garch = matrix(nrow = 10, ncol = 10)
+for (i in 1:10){
+  for (j in 1:10){
+    hypertuning_garch[i, j] = evaluate_model_dax(dax_ugarch_test, garchorder=c(i,j), armaorder=c(1,1))
+    print(paste0(((i-1)*10+j),' % done'))
+  }
+}
+benchmark
+hypertuning_garch
+plot(diag(hypertuning_garch))
+# So (6,6) is the best model with symmetric parameters and more dont enhance the model further
+plot(hypertuning_garch)
