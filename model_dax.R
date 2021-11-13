@@ -98,7 +98,7 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975))
                     mean.model = (list(armaOrder = c(1,1), include.mean = TRUE)),
                     distribution.model = 'std')
   # Prepare Output
-  pred_rq = matrix(NA, length(quantile_levels), 5)
+  pred_rq = matrix(NA, ncol=length(quantile_levels), nrow=5)
   for (i in 1:5){
     # Prepare Data for ret_i
     retx = paste0('ret',i)
@@ -110,11 +110,14 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975))
     ugarch_fit = ugarchfit(spec, data = dax_df)
     # Forecasts
     ugarch_fc = ugarchforecast(ugarch_fit, n.ahead = i)
-    pred_rq[i,1] = quantile(ugarch_fc, probs=0.025)[i]
-    pred_rq[i,2] = quantile(ugarch_fc, probs=0.25)[i]
-    pred_rq[i,3] = fitted(ugarch_fc)[i]
-    pred_rq[i,4] = quantile(ugarch_fc, probs=0.75)[i]
-    pred_rq[i,5] = quantile(ugarch_fc, probs=0.975)[i]
+    for (n_quantile in 1:length(quantile_levels)){
+      pred_rq[i,n_quantile] = quantile(ugarch_fc, probs=quantile_levels[n_quantile])[i]
+    }
+    #pred_rq[i,1] = quantile(ugarch_fc, probs=0.025)[i]
+    #pred_rq[i,2] = quantile(ugarch_fc, probs=0.25)[i]
+    #pred_rq[i,3] = fitted(ugarch_fc)[i]
+    #pred_rq[i,4] = quantile(ugarch_fc, probs=0.75)[i]
+    #pred_rq[i,5] = quantile(ugarch_fc, probs=0.975)[i]
   }
   return(pred_rq)
 }
