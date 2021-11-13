@@ -33,7 +33,7 @@ rolling_window_dax = 150 # Aus model_enhancement: 150 sollte optimal sein
 #fcst_dax = dax_quantreg('2021-11-03', transpose=TRUE, rolling_window=rolling_window_dax)
 
 ## GARCH
-fcst_dax = dax_ugarch(date)
+fcst_dax = dax_ugarch(date, garchorder=c(6,6))
 
 # Evaluation
 fcst_dax
@@ -44,7 +44,11 @@ plot_forecasts_dax(date, fcst_dax, history_size=rolling_window_dax, model_name='
 
 
 ## EMOS
-fcst_temp = temp_emos(date)
+#fcst_temp = temp_emos(date)
+#fcst_temp
+
+## EMOS with radiation
+fcst_temp = temp_emos_multi(date)
 fcst_temp
 
 # Evaluation
@@ -60,7 +64,11 @@ plot_forecasts_weather(date, fcst_temp, history_size=history_weather, model_name
 #fcst_wind = wind_emos_tn(date)
 
 ## EMOS with truncated logistic
-fcst_wind = wind_emos_tl(date)
+#fcst_wind = wind_emos_tl(date)
+#fcst_wind
+
+## EMOS with truncated logistic and mean sea level pressure
+fcst_wind = wind_emos_tl_multi(date)
 fcst_wind
 
 # Evaluation
