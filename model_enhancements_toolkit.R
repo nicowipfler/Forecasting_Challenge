@@ -88,7 +88,7 @@ approx_crps = function(quantile_levels, fc, obs){
   return(mean(scores))
 }
 
-evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)){
+evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9), ...){
   #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
   #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
@@ -104,7 +104,7 @@ evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,
     # Get observations at each init_date that we have all information for (as of now, just two dates)
     observations = get_obs(variable,init_date)
     # Get Forecasts of the given model for given init_date
-    forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels)
+    forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
     # Compare to obs: Compute Quantile Scores / Approx- CRPS
     scores_dates[i] = approx_crps(quantile_levels, forecasts, observations)
   }
@@ -112,7 +112,7 @@ evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,
   return(final_score)
 }
 
-evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9), quantreg=FALSE){
+evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9), quantreg=FALSE, ...){
   #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
@@ -131,7 +131,7 @@ evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0
     observations = c(dax_data[dim(dax_data)[1]-4,'ret1'], dax_data[dim(dax_data)[1]-3,'ret2'], dax_data[dim(dax_data)[1]-2,'ret3'],
             dax_data[dim(dax_data)[1]-1,'ret4'], dax_data[dim(dax_data)[1],'ret5'])
     # Get Forecasts of the given model for given init_date
-    forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels)
+    forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
     if(quantreg){
       forecasts = t(forecasts)
     }
