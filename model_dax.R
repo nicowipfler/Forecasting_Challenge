@@ -85,7 +85,7 @@ dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_dat
 }
 
 
-dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
+dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1)){
   #' DAX Forecast using GARCH(1,1) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
@@ -94,7 +94,7 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975))
   dax_data = get_dax_data(init_date)
   dax_data = dax_data[!is.na(dax_data$ret5),]
   # Model
-  spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
+  spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = garchorder),
                     mean.model = (list(armaOrder = c(1,1), include.mean = TRUE)),
                     distribution.model = 'std')
   # Prepare Output
