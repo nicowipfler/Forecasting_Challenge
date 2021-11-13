@@ -111,6 +111,7 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975))
     # Forecasts
     ugarch_fc = ugarchforecast(ugarch_fit, n.ahead = i)
     for (n_quantile in 1:length(quantile_levels)){
+      # fitted(ugarch_fc) and quantile(ugarch_fc, 0.5) yield the same value!
       pred_rq[i,n_quantile] = quantile(ugarch_fc, probs=quantile_levels[n_quantile])[i]
     }
     #pred_rq[i,1] = quantile(ugarch_fc, probs=0.025)[i]
