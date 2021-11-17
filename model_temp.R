@@ -59,14 +59,16 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   return(fcst_temp)
 }
 
+
 temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
-  #' Function to make forecasts of temp using EMOS with normal distribution
+  #' Function to make forecasts of temp using EMOS with normal distribution and additional regressor radiation
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   t2m_data_raw = get_hist_temp_data()
   # get historic rad data
-  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+  load(paste0(data_dir, "icon_eps_aswdir_s.RData")) 
   data_aswdir_s = data_icon_eps
   # Get current ensemble forecasts temp
   data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
@@ -76,7 +78,8 @@ temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.97
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
   # get current rad data
-  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_direct_rad_Berlin.txt"), sep = "|", header = TRUE)
+  # at 2021-11-17 name was changed from aswdir-s to direct-rad in gitlab...
   new_fcst_rad[,1] = NULL
   new_fcst_rad[,ncol(new_fcst_rad)] = NULL
   # Prepare Output Data
