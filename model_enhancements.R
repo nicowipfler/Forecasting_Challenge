@@ -1322,7 +1322,7 @@ crps[4] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_temp,'wind'
 crps
 
 
-# WEEK 4: DAX HYPERTUNING -------------------------------------------------
+# WEEK 4: DAX GARCH HYPERTUNING -------------------------------------------
 
 
 evaluate_model_dax(dax_quantreg,quantreg=TRUE)
@@ -1391,4 +1391,12 @@ benchmark
 hypertuning_garch
 plot(diag(hypertuning_garch))
 # So (6,6) is the best model with symmetric parameters and more dont enhance the model further
-plot(hypertuning_garch)
+which(hypertuning_garch == min(hypertuning_garch), arr.ind = TRUE)
+# The very best model is (10,6), so lets look at (.,6)
+plot(hypertuning_garch[,6])
+# Not that much better than (6,6)
+# SO I CHOOSE GARCH(6,6)
+# SAVE RESULTS IN RDATA
+save(benchmark, hypertuning_arma, hypertuning_garch, file = "garch_hyperparametertuning.RData")
+# TO RESTORE (i moved the file manually)
+load('C://dev//Forecasting_Challenge//graphics and tables for elaboration//DAX//GARCH//garch_hyperparametertuning.RData')
