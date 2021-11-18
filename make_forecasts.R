@@ -35,9 +35,12 @@ rolling_window_dax = 150 # Aus model_enhancement: 150 sollte optimal sein
 ## GARCH
 fcst_dax = dax_ugarch(date, garchorder=c(6,6))
 
+## COMBINATION
+#fcst_dax = combine_forecasts(fcst_ugarch, fcst_quantreg)
+
 # Evaluation
 fcst_dax
-plot_forecasts_dax(date, fcst_dax, history_size=rolling_window_dax, model_name='quantile regression (basic)')
+plot_forecasts_dax(date, fcst_dax, history_size=rolling_window_dax, model_name='UGARCH(6,6)')
 
 
 ### Temperature
@@ -53,7 +56,8 @@ fcst_temp
 
 # Evaluation
 history_weather = 10
-plot_forecasts_weather(date, fcst_temp, history_size=history_weather, model_name='EMOS using normal distribution', 'air_temperature')
+plot_forecasts_weather(date, fcst_temp, history_size=history_weather, 
+                       model_name='EMOS using normal distribution with 2nd regressor', 'air_temperature')
 #TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
 
 
@@ -72,7 +76,8 @@ fcst_wind = wind_emos_tl_multi(date)
 fcst_wind
 
 # Evaluation
-plot_forecasts_weather(date, fcst_wind, history_size=history_weather, model_name='EMOS using truncated normal distribution', 'wind')
+plot_forecasts_weather(date, fcst_wind, history_size=history_weather, 
+                       model_name='EMOS using truncated normal distribution with 2nd regressor', 'wind')
 #TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
 
 
