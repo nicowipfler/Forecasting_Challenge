@@ -29,18 +29,22 @@ date = '2021-11-10'
 
 
 ## QUANTILE REGRESSION
-rolling_window_dax = 150 # Aus model_enhancement: 150 sollte optimal sein
-#fcst_dax = dax_quantreg('2021-11-03', transpose=TRUE, rolling_window=rolling_window_dax)
+rolling_window_dax = 150 # Aus model_enhancement: 150 sollte optimal sein UPDATE: 1100 besser, 150 war nur lokales Minimum
+#fcst_dax = dax_quantreg(date, transpose=TRUE, rolling_window=rolling_window_dax)
 
-## GARCH
-fcst_dax = dax_ugarch(date, garchorder=c(6,6))
+## One GARCH model
+#fcst_dax = dax_ugarch(date, garchorder=c(6,6))
+
+## MULTIPLE GARCH MODELS
+# These three history sizes should be kind of optimal, but it can happen that the model does not converge, then try surrounding sizes
+fcst_dax = dax_ugarch_combined('2021-11-03', garchorder=c(6,6), history_sizes=c(243,800,1030))
 
 ## COMBINATION
 #fcst_dax = combine_forecasts(fcst_ugarch, fcst_quantreg)
 
 # Evaluation
 fcst_dax
-plot_forecasts_dax(date, fcst_dax, history_size=rolling_window_dax, model_name='UGARCH(6,6)')
+plot_forecasts_dax(date, fcst_dax, history_size=200, model_name='UGARCH(6,6)')
 
 
 ### Temperature

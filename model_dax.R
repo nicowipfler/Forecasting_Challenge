@@ -86,10 +86,11 @@ dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_dat
 
 
 dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_size = 0){
-  #' DAX Forecast using GARCH(1,1) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
+  #' DAX Forecast using GARCH(n,m) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
-  #' history_size: integer containing the size of the rolling window to be used, whereas 0 indicates the full history
+  #' garchorder: vector containing the order of the GARCH model, e.g. c(6,6)
+  #' history_size: integer containing the size of the rolling window to be used, whereas 0 indicates 2020-01-01
   
   # Prepare data
   dax_data = get_dax_data(init_date)
@@ -107,7 +108,11 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
     # Prepare Data for ret_i
     retx = paste0('ret',i)
     dax_df = dax_data[,c('Date',retx)]
-    dax_subset = subset(dax_df, as.Date(Date) > '2020-01-01')
+    if(history_size==0){
+      dax_subset = subset(dax_df, as.Date(Date) > '2020-01-01')
+    }else{
+      dax_subset = dax_df
+    }
     dax_df = data.frame(dax_subset[,retx])
     rownames(dax_df) = dax_subset$Date
     # Fit Model
@@ -125,4 +130,28 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
     #pred_rq[i,5] = quantile(ugarch_fc, probs=0.975)[i]
   }
   return(pred_rq)
+}
+
+
+dax_ugarch_combined = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_sizes){
+  #' DAX Forecast using GARCH(1,1) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' history_sizes: vector containing the sizes of the rolling window to be used, whereas 0 indicates the 2020-01-01, e.g. c(200,800)
+  
+  for(model_num in 1:length(history_sizes)){
+    #fcst = paste('fcst',model_num,sep='')
+    #assign(fcst, dax_ugarch(init_date=init_date, quantile_levels=quantile_levels, 
+    #                        garchorder=garchorder, history_size=history_sizes[model_num]))
+    fcst = dax_ugarch(init_date=init_date, quantile_levels=quantile_levels, 
+                      garchorder=garchorder, history_size=history_sizes[model_num])
+    if(model_num==1){
+      fcst_array = array(fcst,dim=c(5,5,length(history_sizes)))
+    } else {
+      fcst_array[,,model_num] = fcst
+    }
+  }
+  fcst_combined = combine_many_forecasts(fc_array=fcst_array, weights=0)
+  return(fcst_combined)
 }

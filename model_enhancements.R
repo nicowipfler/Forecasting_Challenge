@@ -1400,3 +1400,51 @@ plot(hypertuning_garch[,6])
 save(benchmark, hypertuning_arma, hypertuning_garch, file = "garch_hyperparametertuning.RData")
 # TO RESTORE (i moved the file manually)
 load('C://dev//Forecasting_Challenge//graphics and tables for elaboration//DAX//GARCH//garch_hyperparametertuning.RData')
+
+
+# WEEK 5: GARCH history_size ----------------------------------------------
+
+
+source('toolkit.R')
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
+source('model_dax.R')
+source('model_enhancements_toolkit.R')
+test_length = 2000
+scores = matrix(nrow = test_length+1, ncol = 2)
+# Benchmark: Current model starting on 2020-01-01
+scores[1,2] = evaluate_model_dax(dax_ugarch, history_size = 0)
+scores[1,1] = 0
+# After experimenting: 416 is the minimal size that results in a working model
+for(window in 1:test_length){
+  number = window + 1
+  tryCatch({scores[number,2] = evaluate_model_dax(dax_ugarch, history_size = window)},
+           error = function(e){scores[number,2] = NA; print(paste0('Error for window ', window,': ', e))})
+  scores[number,1] = window
+  print(paste0((number-1)/test_length*100, '% finished'))
+}
+scores
+plot(scores)
+colnames(scores) = c('window','score')
+ggplot(as.data.frame(scores), aes(x=window, y=score)) + geom_point() + geom_line() +
+  xlab("window length") + ylab("average score")
+min(scores[,2], na.rm=TRUE)
+# Dieses Minimum liegt in einer sehr volatilen Gegend
+# Betrachte lokale Minima bei 250, 800 und 1050
+min(scores[200:300,], na.rm=TRUE)
+which(scores[,2] == min(scores[200:300,], na.rm=TRUE))
+min(scores[750:850,], na.rm=TRUE)
+which(scores[,2] == min(scores[750:850,], na.rm=TRUE))
+min(scores[900:1200,], na.rm=TRUE)
+which(scores[,2] == min(scores[900:1200,], na.rm=TRUE))
+# Also lokale Minima exakt in 243, 800 und 1030, wobei die Minima absteigend kleiner werden
+# Save Scores, i moved them into the correct folder manually!
+save(scores, file = "garch_hyperparametertuning_history_size.RData")
+# Generate better plot
+scores = scores[1:1300,]
+scores
+ggplot(as.data.frame(scores), aes(x=window, y=score)) + geom_point() + geom_line() +
+  xlab("window length") + ylab("average score")
+# Saved as avg_scores_to_2000, but GARCH model cant handle more than 1300 days of data
+# Implemented function dax_ugarch_combined in model_dax.R that can combine multiple GARCH models
+# So sieht ein Aufruf aus:
+dax_ugarch_combined('2021-11-03', garchorder=c(6,6), history_sizes=c(243,800,1030))
