@@ -1414,7 +1414,6 @@ scores = matrix(nrow = test_length+1, ncol = 2)
 # Benchmark: Current model starting on 2020-01-01
 scores[1,2] = evaluate_model_dax(dax_ugarch, history_size = 0)
 scores[1,1] = 0
-# After experimenting: 416 is the minimal size that results in a working model
 for(window in 1:test_length){
   number = window + 1
   tryCatch({scores[number,2] = evaluate_model_dax(dax_ugarch, history_size = window)},
@@ -1448,3 +1447,31 @@ ggplot(as.data.frame(scores), aes(x=window, y=score)) + geom_point() + geom_line
 # Implemented function dax_ugarch_combined in model_dax.R that can combine multiple GARCH models
 # So sieht ein Aufruf aus:
 dax_ugarch_combined('2021-11-03', garchorder=c(6,6), history_sizes=c(243,800,1030))
+
+## Neuer Test mit anderem Solver in ugarchfit: Ändert nichts, außer dass (ab 100) alle Verfahren konvergieren
+test_length = 2000
+scores = matrix(nrow = test_length+1, ncol = 2)
+# Benchmark: Current model starting on 2020-01-01
+scores[1,2] = evaluate_model_dax(dax_ugarch, history_size = 0)
+scores[1,1] = 0
+for(window in 100:(100+test_length-1)){
+  number = window - 98
+  tryCatch({scores[number,2] = evaluate_model_dax(dax_ugarch, history_size = window, solver='hybrid')},
+           error = function(e){scores[number,2] = NA; print(paste0('Error for window ', window,': ', e))})
+  scores[number,1] = window
+  print(paste0((number-1)/test_length*100, '% finished'))
+}
+scores
+plot(scores)
+colnames(scores) = c('window','score')
+ggplot(as.data.frame(scores), aes(x=window, y=score)) + geom_point() + geom_line() +
+  xlab("window length") + ylab("average score")
+
+
+
+# WEEK 5: weather  --------------------------------------------------------
+
+
+#install.packages("disttree", repos="http://R-Forge.R-project.org")
+library('disttree')
+??disttree
