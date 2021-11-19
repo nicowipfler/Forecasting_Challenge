@@ -85,12 +85,13 @@ dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_dat
 }
 
 
-dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_size = 0){
+dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_size = 0, solver='solnp'){
   #' DAX Forecast using GARCH(n,m) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' garchorder: vector containing the order of the GARCH model, e.g. c(6,6)
   #' history_size: integer containing the size of the rolling window to be used, whereas 0 indicates 2020-01-01
+  #' solver: string containing solver algo as in ?ugarchfit, probably for testing purposes only
   
   # Prepare data
   dax_data = get_dax_data(init_date)
@@ -116,7 +117,7 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
     dax_df = data.frame(dax_subset[,retx])
     rownames(dax_df) = dax_subset$Date
     # Fit Model
-    ugarch_fit = ugarchfit(spec, data = dax_df)
+    ugarch_fit = ugarchfit(spec, data = dax_df, solver=solver)
     # Forecasts
     ugarch_fc = ugarchforecast(ugarch_fit, n.ahead = i)
     for (n_quantile in 1:length(quantile_levels)){
