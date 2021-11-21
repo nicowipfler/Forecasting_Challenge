@@ -193,3 +193,16 @@ temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   # Forecasts ready to write to csv
   return(fcst_temp)
 }
+
+
+temp_emos_multi_boosting_mixture = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), weights=c(0.5,0.5)){
+  #' Function to make forecasts of temp using EMOS with normal distribution and additional regressor radiation
+  #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' weights: vector containing numeric weights (that add up to 1) for combination of models
+  
+  fc_emos = temp_emos_multi(init_date, quantile_levels)
+  fc_boost = temp_emos_multi_boosting(init_date, quantile_levels)
+  fc_comb = combine_forecasts(fc_emos, fc_boost, weights)
+  return(fc_comb)
+}
