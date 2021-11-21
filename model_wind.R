@@ -201,3 +201,70 @@ wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0
   }
   return(fcst_wind)
 }
+
+
+wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  #' Function to make forecasts of temp using EMOS with truncated logistic distribution and additional regressor mslp via BOOSTING
+  #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  
+  # Get historical data
+  wind_data_raw = get_hist_wind_data()
+  # get historic mslp data
+  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+  load(paste0(data_dir, "icon_eps_mslp.RData"))
+  data_mslp = data_icon_eps
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
+  # get rid of empty first and last column
+  new_fcst[,1] = NULL
+  new_fcst[,ncol(new_fcst)] = NULL
+  # get current rad data
+  new_fcst_mslp = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_mslp_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_mslp[,1] = NULL
+  new_fcst_mslp[,ncol(new_fcst_mslp)] = NULL
+  # Prepare Output Data
+  fcst_wind = matrix(ncol = length(quantile_levels), nrow = 5)
+  # MODEL
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # create dataset with ensemble predictions and observations corresponding to current lead time
+    wind_data = subset(wind_data_raw, fcst_hour == lead_time)
+    wind_data$ens_sd = sqrt(wind_data$ens_var)
+    # get rad data for forecast horizon
+    mslp_data = subset(data_mslp, fcst_hour == lead_time)
+    mslp_data = mslp_data[!is.na(mslp_data$obs),]
+    # Merge data temp and rad
+    merge = merge(x=wind_data, y=mslp_data, by="obs_tm")
+    # evaluate model on full historic data (with corresponding lead_time)
+    wind_model = crch(obs.x ~ ens_mean.y + ens_mean.x|ens_sd,
+                      data = merge,
+                      dist = "logistic",
+                      left = 0,
+                      truncated = TRUE,
+                      link.scale = "log",
+                      type = "crps",
+                      method = 'boosting')
+    # extract current forecasts for targeted lead_time
+    ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+    ens_fc = as.numeric(ens_fc)
+    # extract current forecasts of rad
+    ens_fc_mslp = new_fcst_mslp[new_fcst_mslp$fcst_hour == lead_time,][2:ncol(new_fcst_mslp)]
+    ens_fc_mslp = as.numeric(ens_fc_mslp)
+    # forecast with EMOS model
+    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_mslp))
+    wind_benchmark2_loc = predict(wind_model,
+                                  pred_df,
+                                  type = "location")
+    wind_benchmark2_sc = predict(wind_model,
+                                 pred_df,
+                                 type = "scale")
+    wind_benchmark2_pred = qtlogis(quantile_levels, wind_benchmark2_loc, wind_benchmark2_sc, left = 0)
+    # Write to Output Data
+    fcst_wind[i,] = wind_benchmark2_pred
+    i = i+1
+  }
+  return(fcst_wind)
+}
