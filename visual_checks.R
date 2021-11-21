@@ -29,7 +29,7 @@ plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
   forecasts_df = data.frame(Date, ret1)
   dat[nrow(dat) + 1:5,] = forecasts_df
   # plot historic data and q0.5 forecasts
-  plot(dat$Date, dat$ret1, type="b", ylim=c(-4,4), main=paste0("DAX Forecasts starting from ", init_date," using ", model_name), xlab="Date", ylab="Return (after 1 day)")
+  plot(dat$Date, dat$ret1, type="b", ylim=c(-4,4), main=paste0("DAX Forecasts by ", model_name), xlab="Date", ylab="Return (after 1 day)")
   # mark forecasted values
   for (i in 1:5){
     points(dat$Date[length(dat$Date)-5+i], forecasts[i,3], pch=20)
@@ -87,7 +87,9 @@ plot_forecasts_weather = function(init_date, forecasts, history_size, model_name
   forecasts_df = data.frame(Date, var)
   dat[nrow(dat) + 1:5,] = forecasts_df
   # plot historic data and q0.5 forecasts
-  plot(dat$Date, dat$var, type="b", main=paste0(variable, " Forecasts starting from ", init_date," using ", model_name), xlab="Date", ylab=variable)
+  plot(dat$Date, dat$var, type="b", 
+       main=paste0(variable, " Forecasts by ", model_name), 
+       xlab="Date", ylab=variable, ylim=c(0,30))
   # mark forecasted values
   for (i in 1:5){
     points(dat$Date[length(dat$Date)-5+i], forecasts[i,3], pch=20)

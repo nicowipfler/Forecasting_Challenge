@@ -15,76 +15,116 @@ source('visual_checks.R')
 source('create_csv.R')
 #TODO The current data must have been saved in the corresponding directories.
 #TODO DAX: Yahoo Finance ^GDAXI, historical data with maximum timeframe under the name "yyyy-mm-dd-dax.csv".
-#TODO Temperature: Get from git repo
-#TODO Wind: Get from git repo
+#TODO Temperature: Get from git repo berlin
+#TODO Wind: Get from git repo berlin
 
 
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2021-11-10'
+date = '2021-11-17'
 
 
 ### DAX
 
 
 ## QUANTILE REGRESSION
-rolling_window_dax = 150 # Aus model_enhancement: 150 sollte optimal sein UPDATE: 1100 besser, 150 war nur lokales Minimum
-#fcst_dax = dax_quantreg(date, transpose=TRUE, rolling_window=rolling_window_dax)
+fcst_dax_quantreg_model = 'Base Quantile Regression with rolling window'
+fcst_dax_quantreg = dax_quantreg(date, transpose=TRUE, rolling_window=150) # UPDATE: 1100 besser, 150 war nur lokales Minimum
+fcst_dax_quantreg
 
 ## One GARCH model
-#fcst_dax = dax_ugarch(date, garchorder=c(6,6))
+fcst_dax_garch_model = 'UGARCH model with order 6,6'
+fcst_dax_garch = dax_ugarch(date, garchorder=c(6,6))
+fcst_dax_garch
 
 ## MULTIPLE GARCH MODELS
 # These three history sizes should be kind of optimal, but it can happen that the model does not converge, then try surrounding sizes
-fcst_dax = dax_ugarch_combined('2021-11-03', garchorder=c(6,6), history_sizes=c(243,800,1030))
+# Maybe combine further with quantreg? Probably not?
+fcst_dax_garch_mixture_model = 'Multiple UGARCH models with optimal history_sizes'
+fcst_dax_garch_mixture = dax_ugarch_combined(date, garchorder=c(6,6), history_sizes=c(243,800,1030))
+fcst_dax_garch_mixture
 
 ## COMBINATION
 #fcst_dax = combine_forecasts(fcst_ugarch, fcst_quantreg)
 
-# Evaluation
-fcst_dax
-plot_forecasts_dax(date, fcst_dax, history_size=200, model_name='UGARCH(6,6)')
+# WHICH ONE SHOULD BE USED?
+dax_model_name = fcst_dax_garch_mixture_model
+fcst_dax = fcst_dax_garch_mixture
+
+# Visual Check
+plot_forecasts_dax(date, fcst_dax, history_size=200, model_name=dax_model_name)
 
 
 ### Temperature
 
 
 ## EMOS
-#fcst_temp = temp_emos(date)
-#fcst_temp
+fcst_temp_emos_base_model = 'Base EMOS model'
+fcst_temp_emos_base = temp_emos(date)
+fcst_temp_emos_base
 
 ## EMOS with radiation
-fcst_temp = temp_emos_multi(date)
-fcst_temp
+fcst_temp_multi_base_model = 'EMOS model with direct_rad'
+fcst_temp_multi = temp_emos_multi(date)
+fcst_temp_multi
 
-# Evaluation
+## EMOS with radiation and boosting -> PERFORMS WORSE THAN JUST EMOS multi
+fcst_temp_multi_boosting_model = 'EMOS model with direct_rad via BOOSTING'
+fcst_temp_multi_boosting = temp_emos_multi_boosting(date)
+fcst_temp_multi_boosting
+
+## EMOS multi + boosting mixture
+fcst_temp_multi_mixture_model = 'EMOS model with direct_rad MIXTURE (+boosting)'
+fcst_temp_multi_mixture = temp_emos_multi_boosting_mixture(date)
+fcst_temp_multi_mixture
+
+# WHICH ONE SHOULD BE USED?
+temp_model_name = fcst_temp_multi_mixture_model
+fcst_temp = fcst_temp_multi_mixture
+
+# Visual Check
+#par(mfrow=c(2,1))
+#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
 history_weather = 10
 plot_forecasts_weather(date, fcst_temp, history_size=history_weather, 
-                       model_name='EMOS using normal distribution with 2nd regressor', 'air_temperature')
-#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
+                       model_name=temp_model_name, 'air_temperature')
 
 
 ### Wind
 
 
 ## EMOS with truncated normal
-#fcst_wind = wind_emos_tn(date)
+fcst_wind_tn_model = 'Base EMOS model using trunc norm'
+fcst_wind_tn = wind_emos_tn(date)
+fcst_wind_tn
 
 ## EMOS with truncated logistic
-#fcst_wind = wind_emos_tl(date)
-#fcst_wind
+fcst_wind_tl_model = 'EMOS model using trunc logistic'
+fcst_wind_tl = wind_emos_tl(date)
+fcst_wind_tl
 
-## EMOS with truncated logistic and mean sea level pressure
-fcst_wind = wind_emos_tl_multi(date)
-fcst_wind
+## EMOS with truncated logistic and MEAN SEA LEVEL PRESSURE
+fcst_wind_tl_multi_model = 'EMOS model using trunc logistic with MSLP'
+fcst_wind_tl_multi = wind_emos_tl_multi(date)
+fcst_wind_tl_multi
 
-# Evaluation
-plot_forecasts_weather(date, fcst_wind, history_size=history_weather, 
-                       model_name='EMOS using truncated normal distribution with 2nd regressor', 'wind')
+## EMOS with truncated logistic and mean sea level pressure and BOOSTING
+fcst_wind_tl_multi_boost_model = 'EMOS model using trunc logistic with MSLP via BOOSTING'
+fcst_wind_tl_multi_boost = wind_emos_tl_multi_boosting(date)
+fcst_wind_tl_multi_boost
+
+# WHICH ONE SHOULD BE USED?
+wind_model_name = fcst_wind_tl_multi_boost_model
+fcst_wind = fcst_wind_tl_multi_boost
+
+# Visual check
 #TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
+plot_forecasts_weather(date, fcst_wind, history_size=history_weather, 
+                       model_name=wind_model_name, 'wind')
 
 
-### Export
+# Export ------------------------------------------------------------------
+
+
 create_csv(date, fcst_dax, fcst_temp, fcst_wind)
-
