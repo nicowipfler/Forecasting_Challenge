@@ -95,7 +95,7 @@ evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   # Preparations
-  init_dates = c('2021-10-27', '2021-11-03')
+  init_dates = c('2021-10-27', '2021-11-03', '2021-11-10')
   scores_dates = matrix(nrow=length(init_dates), ncol=1)
   # Iterate over init_dates, for which we have all the data
   for (i in 1:length(init_dates)){
@@ -120,7 +120,7 @@ evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0
   
   # Preparations
   #TODO Mehr init dates?
-  init_dates = c('2021-10-27', '2021-11-03')
+  init_dates = c('2021-10-27', '2021-11-03', '2021-11-10')
   scores_dates = matrix(nrow=length(init_dates), ncol=1)
   # Iterate over init_dates, for which we have all the data
   for (i in 1:length(init_dates)){
