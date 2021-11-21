@@ -1469,9 +1469,46 @@ ggplot(as.data.frame(scores), aes(x=window, y=score)) + geom_point() + geom_line
 
 
 
-# WEEK 5: weather  --------------------------------------------------------
+
+# WEEK 5: temp (gradient) boosting ----------------------------------------
 
 
-#install.packages("disttree", repos="http://R-Forge.R-project.org")
-library('disttree')
-??disttree
+source('toolkit.R')
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
+source('model_temp.R')
+source('model_enhancements_toolkit.R')
+scores = matrix(nrow=3, ncol=1, 0)
+rownames(scores) = c('Multi EMOS', '+ Boosting', 'Mixture')
+scores[1] = evaluate_model_weather(temp_emos_multi,'air_temperature')
+scores[2] = evaluate_model_weather(temp_emos_multi_boosting,'air_temperature')
+# Makes the forecasts worse. Not by that much, but worse.
+# Try out mixture:
+temp_mixture_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  fc1 = temp_emos_multi(init_date, quantile_levels)
+  fc2 = temp_emos_multi_boosting(init_date, quantile_levels)
+  fc = combine_forecasts(fc1, fc2)
+}
+scores[3] = evaluate_model_weather(temp_mixture_test,'air_temperature')
+scores
+# THE MIXTURE OUTPERFORMS BOTH INDIVIDUAL MODELS
+# What are the optimal weights? -> Next week!
+
+
+# WEEK 5: wind (gradient) boosting  ---------------------------------------
+
+
+source('model_wind.R')
+scores_wind = matrix(nrow=3, ncol=1, 0)
+rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'Mixture')
+scores_wind[1] = evaluate_model_weather(wind_emos_tl_multi,'wind')
+scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind')
+# Makes the forecasts worse. Not by that much, but worse.
+# Try out mixture:
+wind_mixture_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  fc1 = wind_emos_tl_multi(init_date, quantile_levels)
+  fc2 = wind_emos_tl_multi_boosting(init_date, quantile_levels)
+  fc = combine_forecasts(fc1, fc2)
+}
+scores_wind[3] = evaluate_model_weather(wind_mixture_test,'wind')
+scores_wind
+# BOOSTING OUTPERFPORMS PURE EMOS AND MIXTURE (and quite heavily to be honest)
