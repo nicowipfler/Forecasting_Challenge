@@ -1,5 +1,6 @@
 # Script containing several exploratory analyses aiming to improve existing models or to find new ones
 source('toolkit.R')
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
 source('model_enhancements_toolkit.R')
 #
 
@@ -1477,10 +1478,10 @@ source('toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
 source('model_temp.R')
 source('model_enhancements_toolkit.R')
-scores = matrix(nrow=3, ncol=1, 0)
-rownames(scores) = c('Multi EMOS', '+ Boosting', 'Mixture')
-scores[1] = evaluate_model_weather(temp_emos_multi,'air_temperature')
-scores[2] = evaluate_model_weather(temp_emos_multi_boosting,'air_temperature')
+scores_temp = matrix(nrow=4, ncol=1, 0)
+rownames(scores_temp) = c('Multi EMOS', '+ Boosting', 'Mixture', 'Univariate + Boosting')
+scores_temp[1] = evaluate_model_weather(temp_emos_multi,'air_temperature')
+scores_temp[2] = evaluate_model_weather(temp_emos_multi_boosting,'air_temperature')
 # Makes the forecasts worse. Not by that much, but worse.
 # Try out mixture:
 temp_mixture_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
@@ -1488,8 +1489,58 @@ temp_mixture_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.
   fc2 = temp_emos_multi_boosting(init_date, quantile_levels)
   fc = combine_forecasts(fc1, fc2)
 }
-scores[3] = evaluate_model_weather(temp_mixture_test,'air_temperature')
-scores
+scores_temp[3] = evaluate_model_weather(temp_mixture_test,'air_temperature')
+temp_univariate_boost = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  #' Function to make forecasts of temp using EMOS with normal distribution
+  #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  
+  # prepare historical data
+  t2m_data_raw = get_hist_temp_data()
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  # Get rid of empty first and last row
+  new_fcst[,1] = NULL
+  new_fcst[,ncol(new_fcst)] = NULL
+  # Prepare Output Data
+  fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
+  # MODEL
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # create dataset with ensemble predictions and observations corresponding to current lead time
+    t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
+    t2m_data = t2m_data[!is.na(t2m_data$obs),]
+    t2m_data$ens_sd = sqrt(t2m_data$ens_var)
+    # evaluate model on full historic data (with corresponding lead_time)
+    t2m_benchmark2 = crch(obs ~ ens_mean|ens_sd,
+                          data = t2m_data,
+                          dist = "gaussian",
+                          link.scale = "log",
+                          type = "crps",
+                          method = 'boosting')
+    # extract current forecasts for targeted lead_time
+    ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+    ens_fc = as.numeric(ens_fc)
+    # forecast with EMOS model
+    pred_df = data.frame(ens_mean = mean(ens_fc), ens_sd = sd(ens_fc))
+    t2m_benchmark2_loc = predict(t2m_benchmark2,
+                                 pred_df,
+                                 type = "location")
+    t2m_benchmark2_sc = predict(t2m_benchmark2,
+                                pred_df,
+                                type = "scale")
+    t2m_benchmark2_pred = qnorm(quantile_levels, t2m_benchmark2_loc, t2m_benchmark2_sc)
+    # Write to Output Data
+    fcst_temp[i,] = t2m_benchmark2_pred
+    i = i+1
+  }
+  # Forecasts ready to write to csv
+  return(fcst_temp)
+}
+scores_temp[4] = evaluate_model_weather(temp_univariate_boost,'air_temperature')
+scores_temp
 # THE MIXTURE OUTPERFORMS BOTH INDIVIDUAL MODELS
 # What are the optimal weights? -> Next week!
 
@@ -1498,11 +1549,10 @@ scores
 
 
 source('model_wind.R')
-scores_wind = matrix(nrow=3, ncol=1, 0)
-rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'Mixture')
+scores_wind = matrix(nrow=4, ncol=1, 0)
+rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'Mixture', 'Univariate + Boosting')
 scores_wind[1] = evaluate_model_weather(wind_emos_tl_multi,'wind')
 scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind')
-# Makes the forecasts worse. Not by that much, but worse.
 # Try out mixture:
 wind_mixture_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   fc1 = wind_emos_tl_multi(init_date, quantile_levels)
@@ -1510,5 +1560,71 @@ wind_mixture_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.
   fc = combine_forecasts(fc1, fc2)
 }
 scores_wind[3] = evaluate_model_weather(wind_mixture_test,'wind')
+# Test: Univariate wind EMOS with boosting
+wind_emos_tl_boost = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  #' Function to make forecasts of temp using EMOS with truncated logistic distribution
+  #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
+  #' mode: Integer indicating wether [1] forecasts or [2] model_parameters are to be returned
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  
+  # Get historical data
+  wind_data_raw = get_hist_wind_data()
+  # Get current ensemble forecasts
+  # TODO CHANGE DATE when current file has been downloaded to the corresponding folder
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
+  # get rid of empty first and last column
+  new_fcst[,1] = NULL
+  new_fcst[,ncol(new_fcst)] = NULL
+  # Prepare Output Data
+  fcst_wind = matrix(ncol = length(quantile_levels), nrow = 5)
+  if(mode==2){
+    pars = matrix(nrow=5,ncol=2)
+  }
+  # MODEL
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # create dataset with ensemble predictions and observations corresponding to current lead time
+    wind_data = subset(wind_data_raw, fcst_hour == lead_time)
+    wind_data$ens_sd = sqrt(wind_data$ens_var)
+    # evaluate model on full historic data (with corresponding lead_time)
+    wind_benchmark2 = crch(obs ~ ens_mean|ens_sd,
+                           data = wind_data,
+                           dist = "logistic",
+                           left = 0,
+                           truncated = TRUE,
+                           link.scale = "log",
+                           type = "crps",
+                           method = 'boosting')
+    # extract current forecasts for targeted lead_time
+    ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
+    ens_fc = as.numeric(ens_fc)
+    # forecast with EMOS model
+    pred_df = data.frame(ens_mean = mean(ens_fc), ens_sd = sd(ens_fc))
+    wind_benchmark2_loc = predict(wind_benchmark2,
+                                  pred_df,
+                                  type = "location")
+    wind_benchmark2_sc = predict(wind_benchmark2,
+                                 pred_df,
+                                 type = "scale")
+    wind_benchmark2_pred = qtlogis(quantile_levels, wind_benchmark2_loc, wind_benchmark2_sc, left = 0)
+    # Write to Output Data
+    fcst_wind[i,] = wind_benchmark2_pred
+    if(mode==2){
+      pars[i,1] = wind_benchmark2_loc
+      pars[i,2] = wind_benchmark2_sc
+    }
+    i = i+1
+  }
+  if(mode==1){
+    return(fcst_wind)
+  }
+  else if(mode==2){
+    return(pars)
+  }
+}
+scores_wind[4] = evaluate_model_weather(wind_emos_tl_boost,'wind')
 scores_wind
 # BOOSTING OUTPERFPORMS PURE EMOS AND MIXTURE (and quite heavily to be honest)
+save(scores_temp, scores_wind, file = "EMOS_boosting_scores.RData")
