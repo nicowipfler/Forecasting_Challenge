@@ -22,7 +22,7 @@ source('create_csv.R')
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2021-11-17'
+date = '2021-11-24'
 
 
 ### DAX
@@ -30,7 +30,8 @@ date = '2021-11-17'
 
 ## QUANTILE REGRESSION
 fcst_dax_quantreg_model = 'Base Quantile Regression with rolling window'
-fcst_dax_quantreg = dax_quantreg(date, transpose=TRUE, rolling_window=150) # UPDATE: 1100 besser, 150 war nur lokales Minimum
+fcst_dax_quantreg = dax_quantreg(date, transpose=TRUE, 
+                                 rolling_window=150) # UPDATE: 1100 besser, 150 war nur lokales Minimum
 fcst_dax_quantreg
 
 ## One GARCH model
@@ -42,7 +43,8 @@ fcst_dax_garch
 # These three history sizes should be kind of optimal, but it can happen that the model does not converge, then try surrounding sizes
 # Maybe combine further with quantreg? Probably not?
 fcst_dax_garch_mixture_model = 'Multiple UGARCH models with optimal history_sizes'
-fcst_dax_garch_mixture = dax_ugarch_combined(date, garchorder=c(6,6), history_sizes=c(243,800,1030))
+fcst_dax_garch_mixture = dax_ugarch_combined(date, garchorder=c(6,6), 
+                                             history_sizes=c(243,800,1030))
 fcst_dax_garch_mixture
 
 ## COMBINATION
@@ -53,7 +55,8 @@ dax_model_name = fcst_dax_garch_mixture_model
 fcst_dax = fcst_dax_garch_mixture
 
 # Visual Check
-plot_forecasts_dax(date, fcst_dax, history_size=200, model_name=dax_model_name)
+plot_forecasts_dax(date, fcst_dax, history_size=200, 
+                   model_name=dax_model_name)
 
 
 ### Temperature
@@ -85,9 +88,7 @@ fcst_temp = fcst_temp_multi_mixture
 
 # Visual Check
 #par(mfrow=c(2,1))
-#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
-history_weather = 10
-plot_forecasts_weather(date, fcst_temp, history_size=history_weather, 
+plot_forecasts_weather(date, fcst_temp, history_size=14, 
                        model_name=temp_model_name, 'air_temperature')
 
 
@@ -119,8 +120,7 @@ wind_model_name = fcst_wind_tl_multi_boost_model
 fcst_wind = fcst_wind_tl_multi_boost
 
 # Visual check
-#TODO Alte DWD Daten müssen gelöscht werden, damit neue heruntergeladen werden können -> Automatisieren?
-plot_forecasts_weather(date, fcst_wind, history_size=history_weather, 
+plot_forecasts_weather(date, fcst_wind, history_size=14, 
                        model_name=wind_model_name, 'wind')
 
 
