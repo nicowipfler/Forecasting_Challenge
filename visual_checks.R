@@ -59,9 +59,12 @@ plot_forecasts_weather = function(init_date, forecasts, history_size, model_name
     per = "recent",
     var = variable
   )
-  dataDWD(dwd_url)
   if(variable=='wind'){
-    obs_data = readDWD('C:/dev/Forecasting_Challenge/DWDdata/hourly_wind_recent_stundenwerte_FF_00433_akt.zip')
+    # Delete old file before downloading new one
+    dwd_file = 'C:/dev/Forecasting_Challenge/DWDdata/hourly_wind_recent_stundenwerte_FF_00433_akt.zip'
+    file.remove(dwd_file)
+    dataDWD(dwd_url)
+    obs_data = readDWD(dwd_file)
     # m/s to km/h
     obs_data$F = obs_data$F * 3.6
     # time format
@@ -71,7 +74,11 @@ plot_forecasts_weather = function(init_date, forecasts, history_size, model_name
     colnames(dat) = c('Date', 'var')
   }
   else{
-    obs_data = readDWD('C:/dev/Forecasting_Challenge/DWDdata/hourly_air_temperature_recent_stundenwerte_TU_00433_akt.zip')
+    # Delete old file before downloading new one
+    dwd_file = 'C:/dev/Forecasting_Challenge/DWDdata/hourly_air_temperature_recent_stundenwerte_TU_00433_akt.zip'
+    file.remove(dwd_file)
+    dataDWD(dwd_url)
+    obs_data = readDWD(dwd_file)
     # time format
     obs_data$MESS_DATUM = ymd_hms(obs_data$MESS_DATUM)
     # select relevant columns
