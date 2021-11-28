@@ -48,6 +48,7 @@ get_dax_data_directly = function(init_date){
            ret4 = compute_return(GDAXI.Adjusted, h = 4),
            ret5 = compute_return(GDAXI.Adjusted, h = 5))#,
            #Date = ymd(Date))
+  dat = cbind(Date = rownames(dat), dat)
   return(dat)
 }
 
@@ -63,7 +64,7 @@ dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_dat
   
   # get data
   if(!give_data){
-    dat = get_dax_data(init_date)
+    dat = get_dax_data_directly(init_date)
   } else {
     dat = data
   }
@@ -110,7 +111,7 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
   #' solver: string containing solver algo as in ?ugarchfit, probably for testing purposes only
   
   # Prepare data
-  dax_data = get_dax_data(init_date)
+  dax_data = get_dax_data_directly(init_date)
   dax_data = dax_data[!is.na(dax_data$ret5),]
   dax_data = subset(dax_data, as.Date(Date) > as.Date(init_date) - history_size )
   # Model
