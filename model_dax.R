@@ -21,7 +21,7 @@ compute_return = function(y, type = "log", h = 1){
 
 
 get_dax_data = function(init_date){
-  #' Get the DAX data of the corresponding date
+  #' Get the DAX data of the corresponding date loaded from the folder data_dir
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   
   data_dir = "C://dev//Forecasting_Challenge//data//dax//"
@@ -37,7 +37,23 @@ get_dax_data = function(init_date){
 }
 
 
-dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_data = FALSE, data = NA, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
+get_dax_data_directly = function(init_date){
+  #' Get the DAX data of the corresponding date loaded directly from yahoo finance
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  
+  dat = data.frame(getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-2000, to = as.Date(init_date)+1, auto.assign=FALSE)) %>%
+    mutate(ret1 = compute_return(GDAXI.Adjusted, h = 1),
+           ret2 = compute_return(GDAXI.Adjusted, h = 2),
+           ret3 = compute_return(GDAXI.Adjusted, h = 3),
+           ret4 = compute_return(GDAXI.Adjusted, h = 4),
+           ret5 = compute_return(GDAXI.Adjusted, h = 5))#,
+           #Date = ymd(Date))
+  return(dat)
+}
+
+
+dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_data = FALSE, 
+                        data = NA, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
   #' DAX Forecast using quantile regression with moving_window of rolling_window
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' transpose: Boolean, expresses weather the results should be transposed or not, e.g. TRUE
@@ -85,20 +101,18 @@ dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_dat
 }
 
 
-dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_size = 0, solver='solnp'){
+dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_size = 1400, solver='solnp'){
   #' DAX Forecast using GARCH(n,m) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' garchorder: vector containing the order of the GARCH model, e.g. c(6,6)
-  #' history_size: integer containing the size of the rolling window to be used, whereas 0 indicates 2020-01-01
+  #' history_size: integer containing the size of the rolling window to be used, whereas 1400 (result of hypertuning)
   #' solver: string containing solver algo as in ?ugarchfit, probably for testing purposes only
   
   # Prepare data
   dax_data = get_dax_data(init_date)
   dax_data = dax_data[!is.na(dax_data$ret5),]
-  if(history_size > 0){
-    dax_data = subset(dax_data, as.Date(Date) > as.Date(init_date) - history_size )
-  }
+  dax_data = subset(dax_data, as.Date(Date) > as.Date(init_date) - history_size )
   # Model
   spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = garchorder),
                     mean.model = (list(armaOrder = c(1,1), include.mean = TRUE)),
@@ -109,11 +123,7 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
     # Prepare Data for ret_i
     retx = paste0('ret',i)
     dax_df = dax_data[,c('Date',retx)]
-    if(history_size==0){
-      dax_subset = subset(dax_df, as.Date(Date) > '2020-01-01')
-    }else{
-      dax_subset = dax_df
-    }
+    dax_subset = dax_df
     dax_df = data.frame(dax_subset[,retx])
     rownames(dax_df) = dax_subset$Date
     # Fit Model
@@ -124,35 +134,45 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
       # fitted(ugarch_fc) and quantile(ugarch_fc, 0.5) yield the same value!
       pred_rq[i,n_quantile] = quantile(ugarch_fc, probs=quantile_levels[n_quantile])[i]
     }
-    #pred_rq[i,1] = quantile(ugarch_fc, probs=0.025)[i]
-    #pred_rq[i,2] = quantile(ugarch_fc, probs=0.25)[i]
-    #pred_rq[i,3] = fitted(ugarch_fc)[i]
-    #pred_rq[i,4] = quantile(ugarch_fc, probs=0.75)[i]
-    #pred_rq[i,5] = quantile(ugarch_fc, probs=0.975)[i]
   }
   return(pred_rq)
 }
 
 
-dax_ugarch_combined = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_sizes){
+dax_ugarch_combined = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_sizes, debug=FALSE){
   #' DAX Forecast using GARCH(1,1) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' history_sizes: vector containing the sizes of the rolling window to be used, whereas 0 indicates the 2020-01-01, e.g. c(200,800)
+  #' debug: boolean wether debugging (printing history_sizes)
   
   for(model_num in 1:length(history_sizes)){
+    print(history_sizes[model_num])
     #fcst = paste('fcst',model_num,sep='')
     #assign(fcst, dax_ugarch(init_date=init_date, quantile_levels=quantile_levels, 
     #                        garchorder=garchorder, history_size=history_sizes[model_num]))
     fcst = dax_ugarch(init_date=init_date, quantile_levels=quantile_levels, 
                       garchorder=garchorder, history_size=history_sizes[model_num])
+    print('fitted')
     if(model_num==1){
-      fcst_array = array(fcst,dim=c(5,5,length(history_sizes)))
+      fcst_array = array(fcst,dim=c(5,length(quantile_levels),length(history_sizes)))
     } else {
       fcst_array[,,model_num] = fcst
     }
   }
   fcst_combined = combine_many_forecasts(fc_array=fcst_array, weights=0)
   return(fcst_combined)
+}
+
+
+dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(6,6), history_size = 1400, 
+                          solver='solnp', rolling_window=800, weight_garch=0.5){
+  #' Arguments as used in subfunctions
+  
+  fcst_garch = dax_ugarch(init_date = init_date, quantile_levels = quantile_levels, 
+                          garchorder = garchorder, history_size = history_size, solver = solver)
+  fcst_quantreg = dax_quantreg(init_date=init_date, transpose=TRUE, quantile_levels=quantile_levels, rolling_window=rolling_window)
+  fcst_out = combine_forecasts(fcst_garch, fcst_quantreg, weights = c(weight_garch, 1-weight_garch))
+  return(fcst_out)
 }
