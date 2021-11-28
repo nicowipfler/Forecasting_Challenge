@@ -1628,3 +1628,170 @@ scores_wind[4] = evaluate_model_weather(wind_emos_tl_boost,'wind')
 scores_wind
 # BOOSTING OUTPERFPORMS PURE EMOS AND MIXTURE (and quite heavily to be honest)
 save(scores_temp, scores_wind, file = "EMOS_boosting_scores.RData")
+
+
+# WEEK 6: Evaluate current DAX model --------------------------------------
+
+
+source('model_dax.R')
+# Model scores based on the last 4 weeks
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
+scores_dax_4weeks = matrix(nrow=5, ncol=1, 0)
+rownames(scores_dax_4weeks) = c('current: garch mixture (3 history sizes)', 'simple garch', 'quantreg hist 150', 
+                         'quantreg hist 900', 'NEW: combination of best garch and best quantreg')
+scores_dax_4weeks[1] = evaluate_model_dax(dax_ugarch_combined,garchorder=c(6,6), history_sizes = c(245,800,1029),
+                                   debug=TRUE, init_dates = init_dates)
+scores_dax_4weeks[2] = evaluate_model_dax(dax_ugarch,garchorder=c(6,6), init_dates = init_dates)
+scores_dax_4weeks[3] = evaluate_model_dax(dax_quantreg,transpose=TRUE,rolling_window=150,init_dates = init_dates)
+scores_dax_4weeks[4] = evaluate_model_dax(dax_quantreg,transpose=TRUE,rolling_window=900,init_dates = init_dates)
+dax_garch_quantreg_comb = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(6,6), history_size = 0, solver='solnp',
+                                   transpose=FALSE, rolling_window=900){
+  #' First row of arguments for GARCH
+  #' Second for quantreg
+  fcst_garch = dax_ugarch(init_date, quantile_levels, garchorder, history_size, solver)
+  fcst_quantreg = dax_quantreg(init_date=init_date, transpose=TRUE, quantile_levels=quantile_levels, rolling_window=rolling_window)
+  fcst_out = combine_forecasts(fcst_garch, fcst_quantreg)
+  
+  return(fcst_out)
+}
+scores_dax_4weeks[5] = evaluate_model_dax(dax_garch_quantreg_comb,init_dates = init_dates)
+scores_dax_4weeks
+# Model scores based on the last week that was very volatile
+init_dates = c('2021-11-17')
+scores_dax_lastweek = matrix(nrow=5, ncol=1, 0)
+rownames(scores_dax_lastweek) = c('current: garch mixture (3 history sizes)', 'simple garch', 'quantreg hist 150', 
+                                'quantreg hist 900', 'NEW: combination of best garch and best quantreg')
+scores_dax_lastweek[1] = evaluate_model_dax(dax_ugarch_combined,garchorder=c(6,6), history_sizes = c(245,800,1029),
+                                          debug=TRUE, init_dates = init_dates)
+scores_dax_lastweek[2] = evaluate_model_dax(dax_ugarch,garchorder=c(6,6), init_dates = init_dates)
+scores_dax_lastweek[3] = evaluate_model_dax(dax_quantreg,transpose=TRUE,rolling_window=150,init_dates = init_dates)
+scores_dax_lastweek[4] = evaluate_model_dax(dax_quantreg,transpose=TRUE,rolling_window=900,init_dates = init_dates)
+scores_dax_lastweek[5] = evaluate_model_dax(dax_garch_quantreg_comb,init_dates = init_dates)
+scores_dax_lastweek
+# Here you see, that quantile regresion was way better because of larger confidence intervals
+# Comparison: Scores in first three weeks, that were less volatile
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10')
+scores_dax_first3weeks = matrix(nrow=5, ncol=1, 0)
+rownames(scores_dax_first3weeks) = c('current: garch mixture (3 history sizes)', 'simple garch', 'quantreg hist 150', 
+                                  'quantreg hist 900', 'NEW: combination of best garch and best quantreg')
+scores_dax_first3weeks[1] = evaluate_model_dax(dax_ugarch_combined,garchorder=c(6,6), history_sizes = c(245,800,1029),
+                                            debug=TRUE, init_dates = init_dates)
+scores_dax_first3weeks[2] = evaluate_model_dax(dax_ugarch,garchorder=c(6,6), init_dates = init_dates)
+scores_dax_first3weeks[3] = evaluate_model_dax(dax_quantreg,transpose=TRUE,rolling_window=150,init_dates = init_dates)
+scores_dax_first3weeks[4] = evaluate_model_dax(dax_quantreg,transpose=TRUE,rolling_window=900,init_dates = init_dates)
+scores_dax_first3weeks[5] = evaluate_model_dax(dax_garch_quantreg_comb,init_dates = init_dates)
+scores_dax_first3weeks
+# This is why i chose the mix hist_sizes model. But it seems to be overfitted on weeks like this (they were pretty similar)
+# Over all four weeks, the combination of simple garch and quantreg is best. Lets try that!
+save(scores_dax_4weeks, scores_dax_lastweek, scores_dax_first3weeks, file = "evaluation_dax_models_week_6.RData")
+
+
+# WEEK 6: QuantGarch Hyperparametertuning ---------------------------------
+
+
+init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
+               '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
+#init_dates = c('2021-11-03')
+grid = c(150, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500)
+#grid = c(150,900)
+hyperparam_scores = matrix(NA, nrow = length(grid), ncol = length(grid))
+rownames(hyperparam_scores) = paste0('garch',grid)
+colnames(hyperparam_scores) = paste0('quant',grid)
+# Take GARCH order of 6 as taken
+# Optimize over history sizes for garch and quantreg
+for (garch_num in 1:length(grid)){
+  garchsize = grid[garch_num]
+  for (quant_num in 1:length(grid)){
+    quantsize = grid[quant_num]
+    hyperparam_scores[garch_num, quant_num] = evaluate_model_dax(dax_quantgarch, init_dates = init_dates, history_size = garchsize, 
+                                                                 rolling_window = quantsize)
+    print(paste0((100*((garch_num-1)*length(grid)+quant_num) )/(length(grid)*length(grid)),' % done'))
+  }
+}
+hyperparam_scores
+min(hyperparam_scores)
+
+x = paste0(grid,'') # if taken as numerical values plot gets ugly, so trick the system by making it strings
+y = paste0(grid,'')
+df_grid = expand.grid(X=x,Y=y)
+df_grid
+
+scores = hyperparam_scores # rename for plot
+ggplot(df_grid, aes(X,Y, fill=scores)) + geom_tile() + scale_fill_gradient(low="black", high="bisque") +
+  labs(title = 'scores hyperparameter grid search') + xlab('rolling window GARCH(6,6)') + ylab('rolling window quantile regression')
+
+x_zoom = paste0(grid[13:15],'')
+df_grid_zoom = expand.grid(X=x_zoom,Y=y)
+
+scores = hyperparam_scores[13:15,]
+ggplot(df_grid_zoom, aes(X,Y, fill=scores)) + geom_tile() + scale_fill_gradient(low="black", high="bisque")+
+  labs(title = 'scores hyperparameter grid search (zoomed in)') + xlab('rolling window GARCH(6,6)') +
+  ylab('rolling window quantile regression')
+
+# Comparison:
+init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15')
+scores_compare = matrix(NA, nrow=4, ncol=1)
+rownames(scores_compare) = c('hypertuned quantgarch model', 'base garch', 'garch mixture', 'base quantreg')
+scores_compare[1] = min(hyperparam_scores)
+scores_compare[2] = evaluate_model_dax(dax_ugarch, init_dates = init_dates, garchorder=c(6,6), history_size=1400)
+scores_compare[3] = evaluate_model_dax(dax_ugarch_combined, init_dates = init_dates, garchorder=c(6,6), history_sizes=c(243,800,1030))
+scores_compare[4] = evaluate_model_dax(dax_quantreg, quantreg=TRUE, init_dates = init_dates, rolling_window = 800)
+scores_compare
+
+# Compare simple GARCH and quantgarch for last week 
+evaluate_model_dax(dax_ugarch, init_dates = c('2021-11-17'), garchorder=c(6,6), history_size=800)
+evaluate_model_dax(dax_quantgarch, init_dates = c('2021-11-17'), history_size = 800, 
+                   rolling_window = 800)
+save(hyperparam_scores, scores_compare, file = "hyperparam_scores.RData")
+
+
+# WEEK 6: Test Support Vector Regression ----------------------------------
+
+
+library('e1071')
+init_date = '2021-11-10'
+data = get_dax_data(init_date)
+test_data = get_dax_data(as.Date(init_date)+7)
+test_data = subset(test_data, as.Date(Date) > init_date)
+model1 = svm(ret1 ~ Date, data, type='eps-regression', kernel='radial', cost=0.01, epsilon=0.01, probability=TRUE)
+names(model1)
+plot(predict(model1))
+predict(model1, test_data)
+model5 = svm(ret5 ~ Date, data)
+plot(predict(model5, data))
+
+
+
+# WEEK 6: Optimal weights quantgarch? -------------------------------------
+
+
+set.seed(999)
+init_dates = sample(seq(as.Date('1995/01/01'), as.Date('2021/11/17'), by="day"), 20)
+weight_scores = matrix(NA, nrow = 11, ncol = 1)
+weights = (0:10)/10
+rownames(weight_scores) = weights
+for (n_weight in 1:length(weights)){
+  weight = weights[n_weight]
+  weight_scores[n_weight] = evaluate_model_dax(dax_quantgarch, init_dates = init_dates, history_size = 1400, rolling_window = 800, 
+                                               weight_garch = weight)
+  print(paste0(n_weight*9,'% done'))
+}
+weight_scores
+
+
+# WEEK 6: Optimal weights temp? -------------------------------------------
+
+
+source('model_temp.R')
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
+weight_scores_temp_boost = matrix(NA, nrow = 11, ncol = 1)
+weights = (0:10)/10
+rownames(weight_scores_temp_boost) = weights
+for (n_weight in 1:length(weights)){
+  weight_emos = weights[n_weight]
+  weight_scores_temp_boost[n_weight] = evaluate_model_weather(temp_emos_multi_boosting_mixture, init_dates = init_dates, 
+                                                   weights = c(weight_emos, 1-weight_emos), variable='air_temperature')
+  print(paste0(n_weight*9,'% done'))
+}
+weight_scores_temp_boost
+save(weight_scores_temp_boost, file='opt_weights_temp_boost_mixture.RData')
