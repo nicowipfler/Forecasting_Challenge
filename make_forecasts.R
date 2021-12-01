@@ -6,7 +6,7 @@
 
 # get librarys
 source('toolkit.R')
-load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch','quantmod'))
 # load functions for forecasting, forecast evaluation and forecast export
 source('model_dax.R')
 source('model_wind.R')
@@ -22,7 +22,7 @@ source('create_csv.R')
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2021-11-24'
+date = '2021-12-01'
 
 
 ### DAX
@@ -48,14 +48,16 @@ fcst_dax_garch_mixture = dax_ugarch_combined(date, garchorder=c(6,6),
 fcst_dax_garch_mixture
 
 ## COMBINATION
-#fcst_dax = combine_forecasts(fcst_ugarch, fcst_quantreg)
+fcst_dax_quantgarch_model = 'GARCH + Quantile Regression'
+fcst_dax_quantgarch = dax_quantgarch(date, history_size=1400)
+fcst_dax_quantgarch
 
 # WHICH ONE SHOULD BE USED?
-dax_model_name = fcst_dax_garch_mixture_model
-fcst_dax = fcst_dax_garch_mixture
+dax_model_name = fcst_dax_quantgarch_model
+fcst_dax = fcst_dax_quantgarch
 
 # Visual Check
-plot_forecasts_dax(date, fcst_dax, history_size=200, 
+plot_forecasts_dax(date, fcst_dax, history_size=200, ylim = c(-8, 8),
                    model_name=dax_model_name)
 
 
@@ -79,7 +81,8 @@ fcst_temp_multi_boosting
 
 ## EMOS multi + boosting mixture
 fcst_temp_multi_mixture_model = 'EMOS model with direct_rad MIXTURE (+boosting)'
-fcst_temp_multi_mixture = temp_emos_multi_boosting_mixture(date)
+fcst_temp_multi_mixture = temp_emos_multi_boosting_mixture(date, weights=c(0.8,0.2)) 
+# Optimal weights have been found out in by testing
 fcst_temp_multi_mixture
 
 # WHICH ONE SHOULD BE USED?
@@ -88,7 +91,7 @@ fcst_temp = fcst_temp_multi_mixture
 
 # Visual Check
 #par(mfrow=c(2,1))
-plot_forecasts_weather(date, fcst_temp, history_size=14, 
+plot_forecasts_weather(date, fcst_temp, history_size=14, ylim = c(-5,20),
                        model_name=temp_model_name, 'air_temperature')
 
 
@@ -120,7 +123,7 @@ wind_model_name = fcst_wind_tl_multi_boost_model
 fcst_wind = fcst_wind_tl_multi_boost
 
 # Visual check
-plot_forecasts_weather(date, fcst_wind, history_size=14, 
+plot_forecasts_weather(date, fcst_wind, history_size=14, ylim=c(0,40),
                        model_name=wind_model_name, 'wind')
 
 

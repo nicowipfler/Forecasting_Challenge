@@ -5,7 +5,7 @@
 # in case of problems email johannes.bracher@kit.edu
 
 out_dir = "C://dev//Forecasting_Challenge//forecasts//"
-dat <- read.csv(paste0(out_dir,"20211027_ObiWanKenobi.csv"),stringsAsFactors=FALSE)
+dat <- read.csv(paste0(out_dir,"20211201_ObiWanKenobi.csv"),stringsAsFactors=FALSE)
 
 col_names <- colnames(dat)
 expected_colnames <- c("forecast_date", "target", "horizon", "q0.025", "q0.25", "q0.5", "q0.75", "q0.975")
