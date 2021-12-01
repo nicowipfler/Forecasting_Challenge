@@ -123,7 +123,7 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
   for (i in 1:5){
     # Prepare Data for ret_i
     retx = paste0('ret',i)
-    dax_df = dax_data[,c('Date',retx)]
+    dax_df = dax_data[,c('Date',retx)] %>% na.omit
     dax_subset = dax_df
     dax_df = data.frame(dax_subset[,retx])
     rownames(dax_df) = dax_subset$Date
