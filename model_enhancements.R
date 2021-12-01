@@ -1,6 +1,6 @@
 # Script containing several exploratory analyses aiming to improve existing models or to find new ones
 source('toolkit.R')
-load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch','quantmod'))
 source('model_enhancements_toolkit.R')
 #
 
@@ -1795,3 +1795,12 @@ for (n_weight in 1:length(weights)){
 }
 weight_scores_temp_boost
 save(weight_scores_temp_boost, file='opt_weights_temp_boost_mixture.RData')
+
+
+# WEEK 6: Test Correlation DAX --------------------------------------------
+
+
+source('model_dax.R')
+data = get_dax_data_directly('2021-11-17')
+data = na.omit(data)
+acf(data, lag.max = 5, plot = FALSE)
