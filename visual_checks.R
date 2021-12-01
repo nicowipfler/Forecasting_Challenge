@@ -1,23 +1,17 @@
 # This file contains functions that serve to plot already made forecasts alongside the observed data
 
 
-plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
+plot_forecasts_dax = function(init_date, forecasts, history_size, model_name, ylim=c(-4,4)){
   #' Function to plot forecasts of DAX alongside historic data to visually ensure conclusiveness
   #' init_date: String containing date of initialization of the forecasts, e.g. "2021-10-23"
   #' forecasts: 5x5 Matrix containing DAX forecasts, rows: horizons, columns: quantile levels
   #' history_size: Integer containing the number of days the graph should reach into the past, e.g. 100
   #' model_name: String containing the model name, e.g. "quantile regression"
+  #' ylim: vector of two floats containing the y limits for the plot
   
   # get data corresponding to init_date
   data_dir = "C://dev//Forecasting_Challenge//data//dax//"
-  dat = read.table(paste0(data_dir,init_date,"-dax.csv"), sep = ",", header = TRUE,
-                   na.strings = "null") %>%
-    mutate(ret1 = compute_return(Adj.Close, h = 1),
-           ret2 = compute_return(Adj.Close, h = 2),
-           ret3 = compute_return(Adj.Close, h = 3),
-           ret4 = compute_return(Adj.Close, h = 4),
-           ret5 = compute_return(Adj.Close, h = 5),
-           Date = ymd(Date))
+  dat = get_dax_data_directly(init_date)
   # select relevant columns
   dat = data.frame(as.Date(dat$Date), dat$ret1)
   colnames(dat) = c('Date', 'ret1')
@@ -29,7 +23,7 @@ plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
   forecasts_df = data.frame(Date, ret1)
   dat[nrow(dat) + 1:5,] = forecasts_df
   # plot historic data and q0.5 forecasts
-  plot(dat$Date, dat$ret1, type="b", ylim=c(-4,4), main=paste0("DAX Forecasts by ", model_name), xlab="Date", ylab="Return (after 1 day)")
+  plot(dat$Date, dat$ret1, type="b", ylim=ylim, main=paste0("DAX Forecasts by ", model_name), xlab="Date", ylab="Return (after 1 day)")
   # mark forecasted values
   for (i in 1:5){
     points(dat$Date[length(dat$Date)-5+i], forecasts[i,3], pch=20)
@@ -44,13 +38,14 @@ plot_forecasts_dax = function(init_date, forecasts, history_size, model_name){
   legend('topleft', legend=c("", "", ''), col = 'black', pch=c(NA,NA,20), bty='n')
 }
 
-plot_forecasts_weather = function(init_date, forecasts, history_size, model_name, variable){
+plot_forecasts_weather = function(init_date, forecasts, history_size, model_name, variable, ylim=c(-5,20)){
   #' Function to plot forecasts of weather alongside historic data to visually ensure conclusiveness
   #' init_date: String containing date of initialization of the forecasts, e.g. "2021-10-23"
   #' forecasts: 5x5 Matrix containing weather (temp OR wind) forecasts, rows: horizons, columns: quantile levels
   #' history_size: Integer containing the number of days the graph should reach into the past, e.g. 10
   #' model_name: String containing the model name, e.g. "EMOS with (truncated) normal distribution"
   #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
+  #' ylim: vector of two floats containing the y limits for the plot
   
   # Get recent observations
   dwd_url = selectDWD(
@@ -96,7 +91,7 @@ plot_forecasts_weather = function(init_date, forecasts, history_size, model_name
   # plot historic data and q0.5 forecasts
   plot(dat$Date, dat$var, type="b", 
        main=paste0(variable, " Forecasts by ", model_name), 
-       xlab="Date", ylab=variable, ylim=c(0,30))
+       xlab="Date", ylab=variable, ylim=ylim)
   # mark forecasted values
   for (i in 1:5){
     points(dat$Date[length(dat$Date)-5+i], forecasts[i,3], pch=20)
