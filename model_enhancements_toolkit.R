@@ -88,14 +88,13 @@ approx_crps = function(quantile_levels, fc, obs){
   return(mean(scores))
 }
 
-evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9), ...){
+evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),init_dates, ...){
   #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
   #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   # Preparations
-  init_dates = c('2021-10-27', '2021-11-03', '2021-11-10')
   scores_dates = matrix(nrow=length(init_dates), ncol=1)
   # Iterate over init_dates, for which we have all the data
   for (i in 1:length(init_dates)){
@@ -103,6 +102,7 @@ evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,
     init_date = init_dates[i]
     # Get observations at each init_date that we have all information for (as of now, just two dates)
     observations = get_obs(variable,init_date)
+    print(init_date)
     # Get Forecasts of the given model for given init_date
     forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
     # Compare to obs: Compute Quantile Scores / Approx- CRPS
@@ -112,32 +112,37 @@ evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,
   return(final_score)
 }
 
-evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9), quantreg=FALSE, ...){
+evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9), quantreg=FALSE, 
+                              init_dates, ...){
   #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' quantreg: Boolean indicating wether quantreg is used, bc values have to be transposed then
+  #' init_dates: list of strings containing the dates on which the model should be evaluated
   
   # Preparations
-  #TODO Mehr init dates?
-  init_dates = c('2021-10-27', '2021-11-03', '2021-11-10')
-  scores_dates = matrix(nrow=length(init_dates), ncol=1)
+  scores_dates = matrix(NA, nrow=length(init_dates), ncol=1)
   # Iterate over init_dates, for which we have all the data
   for (i in 1:length(init_dates)){
     # Prep
     init_date = init_dates[i]
-    #TODO: Get observations at each init_date that we have all information for (as of now, just two dates)
-    dax_data = get_dax_data(as.Date(init_date)+7)
+    print(init_date)
+    dax_data = get_dax_data_directly(as.Date(init_date)+7)
     observations = c(dax_data[dim(dax_data)[1]-4,'ret1'], dax_data[dim(dax_data)[1]-3,'ret2'], dax_data[dim(dax_data)[1]-2,'ret3'],
             dax_data[dim(dax_data)[1]-1,'ret4'], dax_data[dim(dax_data)[1],'ret5'])
     # Get Forecasts of the given model for given init_date
-    forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
-    if(quantreg){
-      forecasts = t(forecasts)
-    }
-    # Compare to obs: Compute Quantile Scores / Approx- CRPS
-    scores_dates[i] = approx_crps(quantile_levels, forecasts, observations)
+    tryCatch({
+      forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
+      if(quantreg){
+        forecasts = t(forecasts)
+      }
+      # Compare to obs: Compute Quantile Scores / Approx- CRPS
+      scores_dates[i] = approx_crps(quantile_levels, forecasts, observations)
+    },
+    error = function(cond){
+      scores_dates[i] = NA
+    })
   }
-  final_score = mean(scores_dates)
+  final_score = mean(scores_dates, na.rm=TRUE)
   return(final_score)
 }
