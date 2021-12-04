@@ -1877,3 +1877,45 @@ test_score = evaluate_model_weather(boosting_qrf_comb,'wind',init_dates=init_dat
 test_score
 test_score = evaluate_model_weather(boosting_qrf_comb,'wind',init_dates=init_dates, weights=c(0.8,0.2))
 test_score
+
+
+# WEEEK 7: QRF with additional variables -----------------------------------
+
+
+# Feature Engineering
+df = get_hist_wind_data() %>% na.omit
+df_training = qrf_feature_eng_train(df, lt=36, addmslp=TRUE, addrad=TRUE, addclct=TRUE)
+head(df_training)
+# Seperate observations from predictors
+df_training_target = df_training[,10]
+df_training_predictors = df_training[,-10]
+head(df_training_predictors)
+# Ready to train
+qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4)
+# Feature Engineering for new predictors
+init_date = '2021-11-03'
+df = get_current_wind_fc(init_date)[,-1]
+df_new_predictors = qrf_feature_eng_predict(df, 36, init_date, addmslp=TRUE, addclct=TRUE, addrad=TRUE)
+# Predict
+predict(qrf, newdata = df_new_predictors, what = c(0.025,0.25,0.5,0.75,0.975))
+# Updated wind_qrf, test it
+wind_qrf('2021-11-03')
+wind_qrf('2021-11-03',addclct=TRUE,addmslp=TRUE,addrad=TRUE)
+# Now test it
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24')
+scores_wind = matrix(nrow=11, ncol=1, 0)
+rownames(scores_wind) = c('Base EMOS', 'Multiple EMOS', '+ Boosting', 'Base QRF', '+ mslp', 
+                          '+ rad', '+ clct', '++ rad, clct', '++ rad, mslp', '++ clct, mslp', '+++ all')
+scores_wind[1] = evaluate_model_weather(wind_emos_tl,'wind',init_dates=init_dates)
+scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi,'wind',init_dates=init_dates)
+scores_wind[3] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind',init_dates=init_dates)
+scores_wind[4] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates)
+scores_wind[5] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=FALSE,addrad=FALSE)
+scores_wind[6] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=FALSE,addclct=FALSE,addrad=TRUE)
+scores_wind[7] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=FALSE,addclct=TRUE,addrad=FALSE)
+scores_wind[8] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=FALSE,addclct=TRUE,addrad=TRUE)
+scores_wind[9] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=FALSE,addrad=TRUE)
+scores_wind[10] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=TRUE,addrad=FALSE)
+scores_wind[11] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=TRUE,addrad=TRUE)
+scores_wind
+save(scores_wind, file='qrf_scores.RData')
