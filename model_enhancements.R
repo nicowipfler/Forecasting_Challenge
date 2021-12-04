@@ -1797,10 +1797,83 @@ weight_scores_temp_boost
 save(weight_scores_temp_boost, file='opt_weights_temp_boost_mixture.RData')
 
 
-# WEEK 6: Test Correlation DAX --------------------------------------------
+# WEEK 7: quantregForests wind --------------------------------------------
 
 
-source('model_dax.R')
-data = get_dax_data_directly('2021-11-17')
-data = na.omit(data)
-acf(data, lag.max = 5, plot = FALSE)
+library(quantregForest)
+library('moments')
+source("model_wind.R")
+# First: just for lead time 36
+# Feature Engineering
+df = get_hist_wind_data() %>% na.omit
+qrf_feature_eng_train = function(df, lt){
+  df_lt = subset(df, fcst_hour == lt)
+  df_lt$ens_sd = sqrt(df_lt$ens_var)
+  df_lt$ens_med = apply(df_lt[7:46], 1, median, na.rm=T)
+  df_lt$dez01 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.1)
+  df_lt$dez09 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.9)
+  df_lt$iqr = apply(df_lt[7:46], 1, IQR, na.rm=T)
+  df_lt$skew = apply(df_lt[7:46], 1, skewness, na.rm=T)
+  df_lt$kurt = apply(df_lt[7:46], 1, kurtosis, na.rm=T)
+  df_lt$mon = month(df_lt$obs_tm)
+  df_pred = select(df_lt, ens_mean, ens_med, ens_sd, dez01, dez09, iqr, skew, kurt, mon)
+  return(df_pred)
+}
+df_pred_train = qrf_feature_eng_train(df, lt=36)
+df_obs_train = subset(df, fcst_hour == 36)$obs
+head(df_pred_train)
+head(df_obs_train)
+# Model
+qrf = quantregForest(df_pred_train, df_obs_train, nthreads = 4)
+names(qrf)
+importance(qrf)
+# Predict
+qrf_feature_eng_predict = function(df, lt, init_date){
+  df_lt = subset(df, fcst_hour == lt)
+  df_lt$ens_mean = apply(df_lt[3:42], 1, mean, na.rm=T)
+  df_lt$ens_sd = apply(df_lt[3:42], 1, sd, na.rm=T)
+  df_lt$ens_med = apply(df_lt[3:42], 1, median, na.rm=T)
+  df_lt$dez01 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.1)
+  df_lt$dez09 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.9)
+  df_lt$iqr = apply(df_lt[3:42], 1, IQR, na.rm=T)
+  df_lt$skew = apply(df_lt[3:42], 1, skewness, na.rm=T)
+  df_lt$kurt = apply(df_lt[3:42], 1, kurtosis, na.rm=T)
+  df_lt$mon = month(init_date)
+  df_pred = select(df_lt, ens_mean, ens_med, ens_sd, dez01, dez09, iqr, skew, kurt, mon)
+  return(df_pred)
+}
+df_test = get_current_wind_fc('2021-11-03')
+df_pred_test = qrf_feature_eng_predict(df_test, lt = 36, '2021-11-03')
+head(df_pred_test)
+predict(qrf, newdata = df_pred_test, what = c(0.025,0.25,0.5,0.75,0.975))
+# Now i have addded the function wind_qrf to model_wind.R based on this work, so lets test it
+fc = wind_qrf('2021-10-27')
+fc
+plot_forecasts_weather('2021-10-27', fc, history_size=14, ylim=c(0,40),
+                       model_name="QRF Test", 'wind')
+score = evaluate_model_weather(wind_qrf, 'wind', init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24'))
+score
+#load("C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/EMOS_boosting_scores.RData")
+#scores_wind
+
+
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24')
+scores_wind = matrix(nrow=5, ncol=1, 0)
+rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'QRF', 'QRF Var1', 'QRF Var2')
+scores_wind[1] = evaluate_model_weather(wind_emos_tl_multi,'wind',init_dates=init_dates)
+scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind',init_dates=init_dates)
+scores_wind[3] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates)
+scores_wind[4] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates, ntree=2000)
+scores_wind[5] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates, nodesize=3)
+scores_wind
+
+# Check if combination of boosting and QRF makes the model better
+boosting_qrf_comb = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), weights=c(0.5,0.5)){
+  fc1 = wind_emos_tl_multi_boosting(init_date, quantile_levels)
+  fc2 = wind_qrf(init_date, quantile_levels)
+  return(combine_forecasts(fc1, fc2, weights))
+}
+test_score = evaluate_model_weather(boosting_qrf_comb,'wind',init_dates=init_dates)
+test_score
+test_score = evaluate_model_weather(boosting_qrf_comb,'wind',init_dates=init_dates, weights=c(0.8,0.2))
+test_score
