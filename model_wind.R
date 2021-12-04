@@ -2,7 +2,7 @@
 
 
 get_hist_wind_data = function(){
-  #' Function to get historical temp data
+  #' Function to get historical wind data
   
   data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
   load(paste0(data_dir, "icon_eps_wind_10m.RData"))
@@ -278,7 +278,8 @@ wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0
 }
 
 
-wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
+wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5,
+                    addmslp=FALSE, addclct=FALSE, addrad=FALSE){
   #' Function that predicts wind based on a quantile regression forest
   #' init_date: as all the time
   #' quantile_levels: as all the time
@@ -290,14 +291,15 @@ wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntr
   i = 1
   for (lead_time in c(36,48,60,72,84)){
     # Feature Engineering
-    df_pred_train = qrf_feature_eng_train(df, lt=lead_time)
-    df_obs_train = subset(df, fcst_hour == lead_time)$obs
+    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp, addclct, addrad)
+    df_training_target = df_training[,10]
+    df_training_predictors = df_training[,-10]
     # Quantile Regression Forest
-    qrf = quantregForest(df_pred_train, df_obs_train, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
     # Predict
-    df_test = get_current_wind_fc(init_date)
-    df_pred_test = qrf_feature_eng_predict(df_test, lt = lead_time, init_date)
-    fcst[i,] = predict(qrf, newdata = df_pred_test, what = quantile_levels)
+    df_new = get_current_wind_fc(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
     i = i + 1
   }
   return(fcst)
