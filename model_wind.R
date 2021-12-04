@@ -10,6 +10,16 @@ get_hist_wind_data = function(){
 }
 
 
+get_current_wind_fc = function(init_date){
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,
+                                      "00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
+  return(new_fcst)
+}
+
+
 wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
@@ -19,9 +29,7 @@ wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   # Get historical data
   wind_data_raw = get_hist_wind_data()
   # Get current ensemble forecasts
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst = get_current_wind_fc(init_date)
   # get rid of empty first and last column
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
@@ -267,4 +275,30 @@ wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0
     i = i+1
   }
   return(fcst_wind)
+}
+
+
+wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
+  #' Function that predicts wind based on a quantile regression forest
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  #' ntree: number of trees in random forest (see randomForest Docu)
+  #' nodesize: minimum size of terminal nodes (see randomForest Docu)
+  
+  df = get_hist_wind_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_pred_train = qrf_feature_eng_train(df, lt=lead_time)
+    df_obs_train = subset(df, fcst_hour == lead_time)$obs
+    # Quantile Regression Forest
+    qrf = quantregForest(df_pred_train, df_obs_train, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    # Predict
+    df_test = get_current_wind_fc(init_date)
+    df_pred_test = qrf_feature_eng_predict(df_test, lt = lead_time, init_date)
+    fcst[i,] = predict(qrf, newdata = df_pred_test, what = quantile_levels)
+    i = i + 1
+  }
+  return(fcst)
 }
