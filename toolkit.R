@@ -1,5 +1,6 @@
 # Small file containing useful tools for handy code
 
+# Function to load necessary librarys
 load_libs = function(libs){
   #' small function that loads all libs in one handy command
   #' libs: list of librarys to be loaded, e.g. c('dplyr','lubridate')
@@ -7,7 +8,60 @@ load_libs = function(libs){
   lapply(libs, require, character.only = TRUE)
 }
 
+# Functions to get historical and current ensemble predictions
+get_hist_temp_data = function(){
+  #' Function to get historical temp data
+  
+  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+  load(paste0(data_dir, "icon_eps_t_2m.RData"))
+  return(data_icon_eps)
+}
 
+get_current_temp_data = function(init_date){
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,
+                                      "00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  return(new_fcst)
+}
+
+get_hist_wind_data = function(){
+  #' Function to get historical wind data
+  
+  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+  load(paste0(data_dir, "icon_eps_wind_10m.RData"))
+  return(data_icon_eps)
+}
+
+get_current_wind_data = function(init_date){
+  # Get current ensemble forecasts
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,
+                                      "00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
+  return(new_fcst)
+}
+
+get_hist_data_varname = function(varname){
+  #' Function to get historical data of var varname
+  #' can be direct_rad, clct, mslp
+  
+  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
+  load(paste0(data_dir, paste0("icon_eps_",varname,".RData")))
+  return(data_icon_eps)
+}
+
+get_current_data_varname = function(varname, init_date){
+  # Get current ensemble forecastsfor var varname in direct_rad, mslp, clct
+  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
+  date_formatted = gsub('-','',init_date)
+  current_data = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,
+                                          "00_",varname,"_Berlin.txt"), sep = "|", header = TRUE)
+  return(current_data)
+}
+
+# Functions for combination of forecasts
 combine_forecasts = function(fc_in1, fc_in2, weights=c(0.5,0.5)){
   #' Function that combines two forecasts by weighted averaging. Standard: arithmetic mean
   #' fc_in1 and fc_in2: matrices containing the forecasts
@@ -15,7 +69,6 @@ combine_forecasts = function(fc_in1, fc_in2, weights=c(0.5,0.5)){
   fc_out = weights[1] * fc_in1 + weights[2] * fc_in2
   return(fc_out)
 }
-
 
 combine_many_forecasts = function(fc_array, weights=0){
   #' Function that combines any amount of forecasts by weighted averaging. Standard: arithmetic mean
@@ -34,7 +87,7 @@ combine_many_forecasts = function(fc_array, weights=0){
   return(fc_out)
 }
 
-
+# Functions for feature engineering
 qrf_feature_eng_train = function(df, lt, addmslp=FALSE, addclct=FALSE, addrad=FALSE){
   #' Function that makes feature engineering for weather FALSEile regression forests training, returns ensemble statistics used for qrf
   #' It gets summary statistics for target variable and adds simple summary statistics for additional regressors, if wanted
@@ -83,7 +136,6 @@ qrf_feature_eng_train = function(df, lt, addmslp=FALSE, addclct=FALSE, addrad=FA
   return(df_pred)
 }
 
-
 qrf_feature_eng_predict = function(df, lt, init_date, addmslp=FALSE, addclct=FALSE, addrad=FALSE){
   #' Function that makes feature engineering for weather quantile regression forests predictions.
   #' df: data frame containing the raw training data
@@ -131,24 +183,4 @@ qrf_feature_eng_predict = function(df, lt, init_date, addmslp=FALSE, addclct=FAL
     df_working = merge(df_working, df_varname_final)
   }
   return(df_working)
-}
-
-
-get_hist_data_varname = function(varname){
-  #' Function to get historical data of var varname
-  #' can be direct_rad, clct, mslp
-  
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  load(paste0(data_dir, paste0("icon_eps_",varname,".RData")))
-  return(data_icon_eps)
-}
-
-
-get_current_data_varname = function(varname, init_date){
-  # Get current ensemble forecastsfor var varname in direct_rad, mslp, clct
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  current_data = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,
-                                      "00_",varname,"_Berlin.txt"), sep = "|", header = TRUE)
-  return(current_data)
 }
