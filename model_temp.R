@@ -1,15 +1,6 @@
 # This file contains several functions that serve the purpose of estimating temperature
 
 
-get_hist_temp_data = function(){
-  #' Function to get historical temp data
-  
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  load(paste0(data_dir, "icon_eps_t_2m.RData"))
-  return(data_icon_eps)
-}
-
-
 temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
@@ -18,9 +9,7 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   # prepare historical data
   t2m_data_raw = get_hist_temp_data()
   # Get current ensemble forecasts
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst = get_current_temp_data(init_date)
   # Get rid of empty first and last row
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
@@ -59,26 +48,21 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   return(fcst_temp)
 }
 
-
 temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with normal distribution and additional regressor radiation
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
   t2m_data_raw = get_hist_temp_data()
-  # get historic rad data
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  load(paste0(data_dir, "icon_eps_aswdir_s.RData")) 
-  data_aswdir_s = data_icon_eps
+  # Get historic rad data
+  data_direct_rad = get_hist_data_varname('direct_rad')
   # Get current ensemble forecasts temp
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst = get_current_temp_data(init_date)
   # Get rid of empty first and last row
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
-  # get current rad data
-  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_direct_rad_Berlin.txt"), sep = "|", header = TRUE)
+  # Get current rad data
+  new_fcst_rad = get_current_data_varname('direct_rad', init_date)
   # at 2021-11-17 name was changed from aswdir-s to direct-rad in gitlab...
   new_fcst_rad[,1] = NULL
   new_fcst_rad[,ncol(new_fcst_rad)] = NULL
@@ -91,7 +75,7 @@ temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.97
     t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
     t2m_data = t2m_data[!is.na(t2m_data$obs),]
     # get rad data for forecast horizon
-    rad_data = subset(data_aswdir_s, fcst_hour == lead_time)
+    rad_data = subset(data_direct_rad, fcst_hour == lead_time)
     rad_data = rad_data[!is.na(rad_data$obs),]
     t2m_data$ens_sd = sqrt(t2m_data$ens_var)
     # Merge data temp and rad
@@ -110,7 +94,7 @@ temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.97
     ens_fc_rad = new_fcst_rad[new_fcst_rad$fcst_hour == lead_time,][2:ncol(new_fcst_rad)]
     ens_fc_rad = as.numeric(ens_fc_rad)
     # forecast with EMOS model
-    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_rad))
+    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_rad, na.rm=TRUE))
     t2m_model_loc = predict(t2m_model,
                             pred_df,
                             type = "location")
@@ -126,7 +110,6 @@ temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.97
   return(fcst_temp)
 }
 
-
 temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with normal distribution and additional regressor radiation
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
@@ -134,18 +117,14 @@ temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   
   t2m_data_raw = get_hist_temp_data()
   # get historic rad data
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  load(paste0(data_dir, "icon_eps_aswdir_s.RData")) 
-  data_aswdir_s = data_icon_eps
+  data_direct_rad = get_hist_data_varname('direct_rad')
   # Get current ensemble forecasts temp
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_t_2m_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst = get_current_temp_data(init_date)
   # Get rid of empty first and last row
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
   # get current rad data
-  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_direct_rad_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad = get_current_data_varname('direct_rad', init_date)
   # at 2021-11-17 name was changed from aswdir-s to direct-rad in gitlab...
   new_fcst_rad[,1] = NULL
   new_fcst_rad[,ncol(new_fcst_rad)] = NULL
@@ -158,7 +137,7 @@ temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,
     t2m_data = subset(t2m_data_raw, fcst_hour == lead_time)
     t2m_data = t2m_data[!is.na(t2m_data$obs),]
     # get rad data for forecast horizon
-    rad_data = subset(data_aswdir_s, fcst_hour == lead_time)
+    rad_data = subset(data_direct_rad, fcst_hour == lead_time)
     rad_data = rad_data[!is.na(rad_data$obs),]
     t2m_data$ens_sd = sqrt(t2m_data$ens_var)
     # Merge data temp and rad
@@ -194,7 +173,6 @@ temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   return(fcst_temp)
 }
 
-
 temp_emos_multi_boosting_mixture = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), weights=c(0.5,0.5)){
   #' Function to make forecasts of temp using EMOS with normal distribution and additional regressor radiation
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
@@ -205,4 +183,31 @@ temp_emos_multi_boosting_mixture = function(init_date, quantile_levels=c(0.025,0
   fc_boost = temp_emos_multi_boosting(init_date, quantile_levels)
   fc_comb = combine_forecasts(fc_emos, fc_boost, weights)
   return(fc_comb)
+}
+
+temp_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5,
+                    addmslp=FALSE, addclct=FALSE, addrad=FALSE){
+  #' Function that predicts temp based on a quantile regression forest
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  #' ntree: number of trees in random forest (see randomForest Docu)
+  #' nodesize: minimum size of terminal nodes (see randomForest Docu)
+  
+  df = get_hist_temp_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp, addclct, addrad)
+    df_training_target = df_training[,10]
+    df_training_predictors = df_training[,-10]
+    # Quantile Regression Forest
+    qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    # Predict
+    df_new = get_current_temp_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
+    i = i + 1
+  }
+  return(fcst)
 }
