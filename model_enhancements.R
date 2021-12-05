@@ -1,6 +1,7 @@
 # Script containing several exploratory analyses aiming to improve existing models or to find new ones
 source('toolkit.R')
-load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch','quantmod'))
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
+                   'rugarch','quantmod','quantregForest','moments'))
 source('model_enhancements_toolkit.R')
 #
 
@@ -1801,7 +1802,7 @@ save(weight_scores_temp_boost, file='opt_weights_temp_boost_mixture.RData')
 
 
 library(quantregForest)
-library('moments')
+library(moments)
 source("model_wind.R")
 # First: just for lead time 36
 # Feature Engineering
@@ -1842,7 +1843,7 @@ qrf_feature_eng_predict = function(df, lt, init_date){
   df_pred = select(df_lt, ens_mean, ens_med, ens_sd, dez01, dez09, iqr, skew, kurt, mon)
   return(df_pred)
 }
-df_test = get_current_wind_fc('2021-11-03')
+df_test = get_current_wind_data('2021-11-03')
 df_pred_test = qrf_feature_eng_predict(df_test, lt = 36, '2021-11-03')
 head(df_pred_test)
 predict(qrf, newdata = df_pred_test, what = c(0.025,0.25,0.5,0.75,0.975))
@@ -1894,7 +1895,7 @@ head(df_training_predictors)
 qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4)
 # Feature Engineering for new predictors
 init_date = '2021-11-03'
-df = get_current_wind_fc(init_date)[,-1]
+df = get_current_wind_data(init_date)[,-1]
 df_new_predictors = qrf_feature_eng_predict(df, 36, init_date, addmslp=TRUE, addclct=TRUE, addrad=TRUE)
 # Predict
 predict(qrf, newdata = df_new_predictors, what = c(0.025,0.25,0.5,0.75,0.975))
@@ -1906,16 +1907,92 @@ init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-
 scores_wind = matrix(nrow=11, ncol=1, 0)
 rownames(scores_wind) = c('Base EMOS', 'Multiple EMOS', '+ Boosting', 'Base QRF', '+ mslp', 
                           '+ rad', '+ clct', '++ rad, clct', '++ rad, mslp', '++ clct, mslp', '+++ all')
+# deterministic models
 scores_wind[1] = evaluate_model_weather(wind_emos_tl,'wind',init_dates=init_dates)
 scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi,'wind',init_dates=init_dates)
 scores_wind[3] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind',init_dates=init_dates)
-scores_wind[4] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates)
-scores_wind[5] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=FALSE,addrad=FALSE)
-scores_wind[6] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=FALSE,addclct=FALSE,addrad=TRUE)
-scores_wind[7] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=FALSE,addclct=TRUE,addrad=FALSE)
-scores_wind[8] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=FALSE,addclct=TRUE,addrad=TRUE)
-scores_wind[9] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=FALSE,addrad=TRUE)
-scores_wind[10] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=TRUE,addrad=FALSE)
-scores_wind[11] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=TRUE,addrad=TRUE)
+# qrf has randomness in prediction process, so use mean of 10 runs for each model
+for (model in 4:11){
+  scores_runs = matrix(nrow = 1, ncol = 5, NA)
+  for (run in 1:5){
+    print(paste0('model ',model,' run ',run))
+    if (model==4){
+      scores_runs[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates)
+    } else if (model==5) {
+      scores_runs[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE)
+    } else if (model==6) {
+      scores_runs[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addrad=TRUE)
+    } else if (model==7) {
+      scores_runs[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addclct=TRUE)
+    } else if (model==8) {
+      scores_runs[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addclct=TRUE,addrad=TRUE)
+    } else if (model==9) {
+      scores_runs[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addrad=TRUE)
+    } else if (model==10) {
+      scores_runs[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=TRUE)
+    } else if (model==11) {
+      scores_runs[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates,addmslp=TRUE,addclct=TRUE,addrad=TRUE)
+    }
+  }
+  scores_wind[model] = mean(scores_runs)
+  print(scores_wind)
+}
 scores_wind
-save(scores_wind, file='qrf_scores.RData')
+
+
+# WEEK 7: QRF for temp ----------------------------------------------------
+
+
+library('quantregForest')
+library('moments')
+source('model_temp.R')
+# I directly implemented qrf for temp, as i wrote the functions for wind qrf in a way i can easily reuse them for temp
+temp_qrf('2021-11-03')
+temp_emos_multi_boosting_mixture('2021-11-03', weights=c(0.8,0.2)) 
+# Now test it
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24')
+scores_temp = matrix(nrow=11, ncol=1, 0)
+rownames(scores_temp) = c('Base EMOS', 'Multiple EMOS', '+ Boosting (Mixture)', 'Base QRF', '+ mslp', 
+                          '+ rad', '+ clct', '++ rad, clct', '++ rad, mslp', '++ clct, mslp', '+++ all')
+# deterministic models
+scores_temp[1] = evaluate_model_weather(temp_emos,'air_temperature',init_dates=init_dates)
+scores_temp[2] = evaluate_model_weather(temp_emos_multi,'air_temperature',init_dates=init_dates)
+scores_temp[3] = evaluate_model_weather(temp_emos_multi_boosting_mixture,'air_temperature',init_dates=init_dates)
+# qrf has randomness in prediction process, so use mean of 10 runs for each model
+for (model in 4:11){
+  scores_runs = matrix(nrow = 1, ncol = 5, NA)
+  for (run in 1:5){
+    if (model==4){
+      print(paste0('model ',model,' run ',run))
+      scores_runs[run] = evaluate_model_weather(temp_qrf,'air_temperature',init_dates=init_dates)
+    } else if (model==5) {
+      scores_runs[run] = evaluate_model_weather(temp_qrf,'air_temperature',init_dates=init_dates,addmslp=TRUE)
+    } else if (model==6) {
+      scores_runs[run] = evaluate_model_weather(temp_qrf,'air_temperature',init_dates=init_dates,addrad=TRUE)
+    } else if (model==7) {
+      scores_runs[run] = evaluate_model_weather(temp_qrf,'air_temperature',init_dates=init_dates,addclct=TRUE)
+    } else if (model==8) {
+      scores_runs[run] = evaluate_model_weather(temp_qrf,'air_temperature',init_dates=init_dates,addclct=TRUE,addrad=TRUE)
+    } else if (model==9) {
+      scores_runs[run] = evaluate_model_weather(temp_qrf,'air_temperature',init_dates=init_dates,addmslp=TRUE,addrad=TRUE)
+    } else if (model==10) {
+      scores_runs[run] = evaluate_model_weather(temp_qrf,'air_temperature',init_dates=init_dates,addmslp=TRUE,addclct=TRUE)
+    } else if (model==11) {
+      scores_runs[run] = evaluate_model_weather(temp_qrf,'air_temperature',init_dates=init_dates,addmslp=TRUE,addclct=TRUE,addrad=TRUE)
+    }
+  }
+  scores_temp[model] = mean(scores_runs)
+  print(scores_temp)
+}
+scores_temp
+
+save(scores_wind_old, scores_temp_old, scores_wind, scores_temp, file='qrf_scores.RData')
+
+load('C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores.RData')
+scores_temp
+scores_wind
+scores_temp_old
+scores_wind_old
+
+#load('C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/EMOS_boosting_scores.RData')
+#scores_wind
