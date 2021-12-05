@@ -1,25 +1,6 @@
 # This file contains several functions that serve the purpose of estimating wind
 
 
-get_hist_wind_data = function(){
-  #' Function to get historical wind data
-  
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  load(paste0(data_dir, "icon_eps_wind_10m.RData"))
-  return(data_icon_eps)
-}
-
-
-get_current_wind_fc = function(init_date){
-  # Get current ensemble forecasts
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,
-                                      "00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
-  return(new_fcst)
-}
-
-
 wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
@@ -29,7 +10,7 @@ wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   # Get historical data
   wind_data_raw = get_hist_wind_data()
   # Get current ensemble forecasts
-  new_fcst = get_current_wind_fc(init_date)
+  new_fcst = get_current_wind_data(init_date)
   # get rid of empty first and last column
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
@@ -80,7 +61,6 @@ wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   }
 }
 
-
 wind_emos_tl = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
@@ -90,10 +70,7 @@ wind_emos_tl = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   # Get historical data
   wind_data_raw = get_hist_wind_data()
   # Get current ensemble forecasts
-  # TODO CHANGE DATE when current file has been downloaded to the corresponding folder
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst = get_current_wind_data(init_date)
   # get rid of empty first and last column
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
@@ -144,7 +121,6 @@ wind_emos_tl = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   }
 }
 
-
 wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution and additional regressor mslp
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
@@ -152,21 +128,15 @@ wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0
   
   # Get historical data
   wind_data_raw = get_hist_wind_data()
-  # get historic mslp data
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  load(paste0(data_dir, "icon_eps_mslp.RData"))
-  data_mslp = data_icon_eps
+  # Get historic mslp data
+  data_mslp = get_hist_data_varname('mslp')
   # Get current ensemble forecasts
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
-  # get rid of empty first and last column
+  new_fcst = get_current_wind_data(init_date)
+  # Get rid of empty first and last column
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
-  # get current rad data
-  new_fcst_mslp = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_mslp_Berlin.txt"), sep = "|", header = TRUE)
-  new_fcst_mslp[,1] = NULL
-  new_fcst_mslp[,ncol(new_fcst_mslp)] = NULL
+  # Get current rad data
+  new_fcst_mslp = get_current_data_varname('mslp', init_date)
   # Prepare Output Data
   fcst_wind = matrix(ncol = length(quantile_levels), nrow = 5)
   # MODEL
@@ -191,11 +161,11 @@ wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0
     # extract current forecasts for targeted lead_time
     ens_fc = new_fcst[new_fcst$fcst_hour == lead_time,][2:ncol(new_fcst)]
     ens_fc = as.numeric(ens_fc)
-    # extract current forecasts of rad
+    # extract current forecasts of mslp
     ens_fc_mslp = new_fcst_mslp[new_fcst_mslp$fcst_hour == lead_time,][2:ncol(new_fcst_mslp)]
     ens_fc_mslp = as.numeric(ens_fc_mslp)
     # forecast with EMOS model
-    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_mslp))
+    pred_df = data.frame(ens_mean.x = mean(ens_fc), ens_sd = sd(ens_fc), ens_mean.y = mean(ens_fc_mslp, na.rm=TRUE))
     wind_benchmark2_loc = predict(wind_model,
                                   pred_df,
                                   type = "location")
@@ -210,7 +180,6 @@ wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0
   return(fcst_wind)
 }
 
-
 wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution and additional regressor mslp via BOOSTING
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
@@ -219,18 +188,14 @@ wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0
   # Get historical data
   wind_data_raw = get_hist_wind_data()
   # get historic mslp data
-  data_dir = "C://dev//Forecasting_Challenge//data//weather_historical//Berlin//"
-  load(paste0(data_dir, "icon_eps_mslp.RData"))
-  data_mslp = data_icon_eps
+  data_mslp = get_hist_data_varname('mslp')
   # Get current ensemble forecasts
-  data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
-  date_formatted = gsub('-','',init_date)
-  new_fcst = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_wind_mean_10m_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst = get_current_wind_data(init_date)
   # get rid of empty first and last column
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
   # get current rad data
-  new_fcst_mslp = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_mslp_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_mslp = get_current_data_varname('mslp', init_date)
   new_fcst_mslp[,1] = NULL
   new_fcst_mslp[,ncol(new_fcst_mslp)] = NULL
   # Prepare Output Data
@@ -277,7 +242,6 @@ wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0
   return(fcst_wind)
 }
 
-
 wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5,
                     addmslp=FALSE, addclct=FALSE, addrad=FALSE){
   #' Function that predicts wind based on a quantile regression forest
@@ -297,7 +261,7 @@ wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntr
     # Quantile Regression Forest
     qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
     # Predict
-    df_new = get_current_wind_fc(init_date)[,-1]
+    df_new = get_current_wind_data(init_date)[,-1]
     df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
     fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
     i = i + 1
