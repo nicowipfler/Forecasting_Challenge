@@ -6,15 +6,14 @@
 
 # get librarys
 source('toolkit.R')
-load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch','quantmod'))
+load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
+                   'rugarch','quantmod','quantregForest','moments'))
 # load functions for forecasting, forecast evaluation and forecast export
 source('model_dax.R')
 source('model_wind.R')
 source('model_temp.R')
 source('visual_checks.R')
 source('create_csv.R')
-#TODO The current data must have been saved in the corresponding directories.
-#TODO DAX: Yahoo Finance ^GDAXI, historical data with maximum timeframe under the name "yyyy-mm-dd-dax.csv".
 #TODO Temperature: Get from git repo berlin
 #TODO Wind: Get from git repo berlin
 
@@ -22,10 +21,10 @@ source('create_csv.R')
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2021-12-01'
+date = '2021-12-08'
 
 
-### DAX
+### DAX +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 ## QUANTILE REGRESSION
@@ -52,7 +51,7 @@ fcst_dax_quantgarch_model = 'GARCH + Quantile Regression'
 fcst_dax_quantgarch = dax_quantgarch(date, history_size=1400)
 fcst_dax_quantgarch
 
-# WHICH ONE SHOULD BE USED?
+# WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
 dax_model_name = fcst_dax_quantgarch_model
 fcst_dax = fcst_dax_quantgarch
 
@@ -61,7 +60,7 @@ plot_forecasts_dax(date, fcst_dax, history_size=200, ylim = c(-8, 8),
                    model_name=dax_model_name)
 
 
-### Temperature
+### Temperature +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 ## EMOS
@@ -85,9 +84,14 @@ fcst_temp_multi_mixture = temp_emos_multi_boosting_mixture(date, weights=c(0.8,0
 # Optimal weights have been found out in by testing
 fcst_temp_multi_mixture
 
-# WHICH ONE SHOULD BE USED?
-temp_model_name = fcst_temp_multi_mixture_model
-fcst_temp = fcst_temp_multi_mixture
+## Quantile Regression Forest
+fcst_temp_qrf_model = 'Quantile Regression Forest'
+fcst_temp_qrf = temp_qrf(date)
+fcst_temp_qrf
+
+# WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
+temp_model_name = fcst_temp_qrf_model
+fcst_temp = fcst_temp_qrf
 
 # Visual Check
 #par(mfrow=c(2,1))
@@ -95,7 +99,7 @@ plot_forecasts_weather(date, fcst_temp, history_size=14, ylim = c(-5,20),
                        model_name=temp_model_name, 'air_temperature')
 
 
-### Wind
+### Wind ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 ## EMOS with truncated normal
@@ -118,7 +122,12 @@ fcst_wind_tl_multi_boost_model = 'EMOS model using trunc logistic with MSLP via 
 fcst_wind_tl_multi_boost = wind_emos_tl_multi_boosting(date)
 fcst_wind_tl_multi_boost
 
-# WHICH ONE SHOULD BE USED?
+## Quantile Regression Forest
+fcst_wind_qrf_model = 'Quantile Regression Forest'
+fcst_wind_qrf = wind_qrf(date, addrad=TRUE)
+fcst_wind_qrf
+
+# WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
 wind_model_name = fcst_wind_tl_multi_boost_model
 fcst_wind = fcst_wind_tl_multi_boost
 
