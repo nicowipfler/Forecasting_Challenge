@@ -1996,3 +1996,244 @@ scores_wind_old
 
 #load('C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/EMOS_boosting_scores.RData')
 #scores_wind
+
+
+# WEEK 8: QRF WEATHER -----------------------------------------------------
+
+
+## FIRST: TEMP
+# Get variable importance for temp model
+df = get_hist_temp_data() %>% na.omit
+qrf_feature_eng_train_many = function(df, lt){
+  df_lt = subset(df, fcst_hour == lt)
+  df_lt$ens_sd = sqrt(df_lt$ens_var)
+  df_lt$ens_med = apply(df_lt[7:46], 1, median, na.rm=T)
+  df_lt$dez01 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.1)
+  df_lt$dez03 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.3)
+  df_lt$dez07 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.7)
+  df_lt$dez09 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.9)
+  df_lt$iqr = apply(df_lt[7:46], 1, IQR, na.rm=T)
+  df_lt$skew = apply(df_lt[7:46], 1, skewness, na.rm=T)
+  df_lt$kurt = apply(df_lt[7:46], 1, kurtosis, na.rm=T)
+  df_lt$mon = month(df_lt$obs_tm)
+  df_pred = select(df_lt, ens_mean, ens_med, ens_sd, dez01, dez03, dez07, dez09, iqr, skew, kurt, mon, obs)
+  return(df_pred)
+}
+importances_temp = array(0, dim=c(11,2,5))
+dimnames(importances_temp)[[3]] = c("36h", "48h", "60h", "72h", "84h")
+index = 1
+for (lead_time in c(36,48,60,72,84)){
+  df_features = qrf_feature_eng_train_many(df, lt=lead_time)
+  df_pred_train = df_features[,-12]
+  df_obs_train = df_features[,12]
+  qrf = quantregForest(df_pred_train, df_obs_train, nthreads = 4)
+  importances_temp[,1,index] = rownames(qrf$importance)
+  importances_temp[,2,index] = qrf$importance
+  index = index + 1
+}
+importances_temp
+# So it seems like everything of higher order than 1, e.g. ens_sd, iqr, skew and kurt, dont matter that much. 
+# So lets test with and without them
+qrf_feature_eng_train_less = function(df, lt){
+  df_lt = subset(df, fcst_hour == lt)
+  df_lt$ens_med = apply(df_lt[7:46], 1, median, na.rm=T)
+  df_lt$dez01 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.1)
+  df_lt$dez03 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.3)
+  df_lt$dez07 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.7)
+  df_lt$dez09 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.9)
+  df_lt$mon = month(df_lt$obs_tm)
+  df_pred = select(df_lt, ens_mean, ens_med, dez01, dez03, dez07, dez09, mon, obs)
+  return(df_pred)
+}
+importances_temp_less = array(0, dim=c(7,2,5))
+dimnames(importances_temp_less)[[3]] = c("36h", "48h", "60h", "72h", "84h")
+index = 1
+for (lead_time in c(36,48,60,72,84)){
+  df_features = qrf_feature_eng_train_less(df, lt=lead_time)
+  df_pred_train = df_features[,-8]
+  df_obs_train = df_features[,8]
+  qrf = quantregForest(df_pred_train, df_obs_train, nthreads = 4)
+  importances_temp_less[,1,index] = rownames(qrf$importance)
+  importances_temp_less[,2,index] = qrf$importance
+  index = index + 1
+}
+importances_temp_less
+# mon isnt important now too, but lets include it anyways (fow now)
+
+## TEST QRF FUNCTION LESS VARS
+qrf_feature_eng_predict_less = function(df, lt, init_date){
+  df_lt = subset(df, fcst_hour == lt)
+  df_lt$ens_mean = apply(df_lt[3:42], 1, mean, na.rm=T)
+  df_lt$ens_med = apply(df_lt[3:42], 1, median, na.rm=T)
+  df_lt$dez01 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.1)
+  df_lt$dez03 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.3)
+  df_lt$dez07 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.7)
+  df_lt$dez09 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.9)
+  df_lt$mon = month(as.Date(init_date)+floor(lt/24))
+  df_working = select(df_lt, ens_mean, ens_med, dez01, dez03, dez07, dez09, mon)
+  return(df_working)
+}
+temp_qrf_test_less = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
+  df = get_hist_temp_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train_less(df=df, lt=lead_time)
+    df_training_target = df_training[,8]
+    df_training_predictors = df_training[,-8]
+    # Quantile Regression Forest
+    qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    # Predict
+    df_new = get_current_temp_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict_less(df_new, lead_time, init_date=init_date)
+    fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
+    i = i + 1
+  }
+  return(fcst)
+}
+# Working:
+temp_qrf_test_less('2021-11-03')
+## TEST QRF FUNCTION MANY VARS
+qrf_feature_eng_predict_many = function(df, lt, init_date){
+  df_lt = subset(df, fcst_hour == lt)
+  df_lt$ens_mean = apply(df_lt[3:42], 1, mean, na.rm=T)
+  df_lt$ens_sd = apply(df_lt[3:42], 1, sd, na.rm=T)
+  df_lt$ens_med = apply(df_lt[3:42], 1, median, na.rm=T)
+  df_lt$dez01 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.1)
+  df_lt$dez03 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.3)
+  df_lt$dez07 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.7)
+  df_lt$dez09 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.9)
+  df_lt$iqr = apply(df_lt[3:42], 1, IQR, na.rm=T)
+  df_lt$skew = apply(df_lt[3:42], 1, skewness, na.rm=T)
+  df_lt$kurt = apply(df_lt[3:42], 1, kurtosis, na.rm=T)
+  df_lt$mon = month(as.Date(init_date)+floor(lt/24))
+  df_working = select(df_lt, ens_mean, ens_med, ens_sd, dez01, dez03, dez07, dez09, iqr, skew, kurt, mon)
+  return(df_working)
+}
+temp_qrf_test_many = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
+  df = get_hist_temp_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train_many(df=df, lt=lead_time)
+    df_training_target = df_training[,12]
+    df_training_predictors = df_training[,-12]
+    # Quantile Regression Forest
+    qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    # Predict
+    df_new = get_current_temp_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict_many(df_new, lead_time, init_date=init_date)
+    fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
+    i = i + 1
+  }
+  return(fcst)
+}
+# Working:
+temp_qrf_test_many('2021-11-10')
+
+## Score these two models 
+scores_temp_additional = matrix(NA, 2, 1)
+rownames(scores_temp_additional) = c('QRF less vars', 'QRF many vars')
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24')
+for(model in 1:2){
+  scores_runs = matrix(NA, 5, 1)
+  for(run in 1:5){
+    print(paste0('model ',model,' run ',run))
+    if(model==1){
+      scores_runs[run] = evaluate_model_weather(temp_qrf_test_less,'air_temperature',init_dates=init_dates)
+    }
+    if(model==2){
+      scores_runs[run] = evaluate_model_weather(temp_qrf_test_many,'air_temperature',init_dates=init_dates)
+    }
+  }
+  scores_temp_additional[model] = mean(scores_runs)
+}
+scores_temp_additional
+
+# Get scores of old models
+load('C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores.RData')
+scores_temp
+
+# So even if the variables seem not to be that important, models including them score better
+# Because of the random sampling in Random Forests, too many variables seem to not hurt that mutch
+
+## NOW: SAME FOR WIND
+wind_qrf_test_many = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
+  df = get_hist_wind_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train_many(df=df, lt=lead_time)
+    df_training_target = df_training[,12]
+    df_training_predictors = df_training[,-12]
+    # Quantile Regression Forest
+    qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    # Predict
+    df_new = get_current_wind_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict_many(df_new, lead_time, init_date=init_date)
+    fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
+    i = i + 1
+  }
+  return(fcst)
+}
+wind_qrf_test_less = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
+  df = get_hist_wind_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train_less(df=df, lt=lead_time)
+    df_training_target = df_training[,8]
+    df_training_predictors = df_training[,-8]
+    # Quantile Regression Forest
+    qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    # Predict
+    df_new = get_current_wind_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict_less(df_new, lead_time, init_date=init_date)
+    fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
+    i = i + 1
+  }
+  return(fcst)
+}
+scores_wind_additional = matrix(NA, 2, 1)
+rownames(scores_wind_additional) = c('QRF less vars', 'QRF many vars')
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24')
+for(model in 1:2){
+  scores_runs = matrix(NA, 5, 1)
+  for(run in 1:5){
+    print(paste0('model ',model,' run ',run))
+    if(model==1){
+      scores_runs[run] = evaluate_model_weather(wind_qrf_test_less,'wind',init_dates=init_dates)
+    }
+    if(model==2){
+      scores_runs[run] = evaluate_model_weather(wind_qrf_test_many,'wind',init_dates=init_dates)
+    }
+  }
+  scores_wind_additional[model] = mean(scores_runs)
+}
+scores_wind_additional
+
+scores_wind
+
+# And assess variable importance:
+df = get_hist_wind_data() %>% na.omit
+importances_wind = array(0, dim=c(11,2,5))
+dimnames(importances_wind)[[3]] = c("36h", "48h", "60h", "72h", "84h")
+index = 1
+for (lead_time in c(36,48,60,72,84)){
+  df_features = qrf_feature_eng_train_many(df, lt=lead_time)
+  df_pred_train = df_features[,-12]
+  df_obs_train = df_features[,12]
+  qrf = quantregForest(df_pred_train, df_obs_train, nthreads = 4)
+  importances_wind[,1,index] = rownames(qrf$importance)
+  importances_wind[,2,index] = qrf$importance
+  index = index + 1
+}
+importances_wind
+
+#save(scores_wind, scores_temp, scores_wind_additional, scores_temp_additional, 
+#     importances_temp, importances_temp_less, importances_wind,
+#     file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
