@@ -4,7 +4,7 @@
 # Preparations ------------------------------------------------------------
 
 
-# get librarys
+# load librarys
 source('toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
                    'rugarch','quantmod','quantregForest','moments'))
@@ -21,7 +21,7 @@ source('create_csv.R')
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2021-12-08'
+date = '2021-12-15'
 
 
 ### DAX +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -123,13 +123,13 @@ fcst_wind_tl_multi_boost = wind_emos_tl_multi_boosting(date)
 fcst_wind_tl_multi_boost
 
 ## Quantile Regression Forest
-fcst_wind_qrf_model = 'Quantile Regression Forest'
-fcst_wind_qrf = wind_qrf(date, addrad=TRUE)
+fcst_wind_qrf_model = 'Quantile Regression Forest + CLCT'
+fcst_wind_qrf = wind_qrf(date, addclct=TRUE)
 fcst_wind_qrf
 
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
-wind_model_name = fcst_wind_tl_multi_boost_model
-fcst_wind = fcst_wind_tl_multi_boost
+wind_model_name = fcst_wind_qrf_model
+fcst_wind = fcst_wind_qrf
 
 # Visual check
 plot_forecasts_weather(date, fcst_wind, history_size=14, ylim=c(0,40),
