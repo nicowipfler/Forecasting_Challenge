@@ -255,7 +255,7 @@ wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntr
   i = 1
   for (lead_time in c(36,48,60,72,84)){
     # Feature Engineering
-    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp, addclct, addrad)
+    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp=addmslp, addclct=addclct, addrad=addrad)
     df_training_target = df_training[,10]
     df_training_predictors = df_training[,-10]
     # Quantile Regression Forest

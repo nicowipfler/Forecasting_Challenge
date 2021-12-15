@@ -1030,7 +1030,7 @@ data_clct = data_icon_eps
 load(paste0(data_dir, "icon_eps_mslp.RData"))
 data_mslp = data_icon_eps
 # Get downward radiation
-load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+load(paste0(data_dir, "icon_eps_direct_rad.RData"))
 data_aswdir_s = data_icon_eps
 rm(data_icon_eps)
 rm(data_dir)
@@ -1120,7 +1120,8 @@ load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'c
 source('model_enhancements_toolkit.R')
 source('model_wind.R')
 crps = matrix(nrow=1,ncol=4)
-crps[1] = suppressWarnings(evaluate_model_weather(wind_emos_tl,'wind'))
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10')
+crps[1] = suppressWarnings(evaluate_model_weather(wind_emos_tl,'wind',init_dates=init_dates))
 
 wind_emos_tl_multi_mslp = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution
@@ -1187,8 +1188,7 @@ wind_emos_tl_multi_mslp = function(init_date, quantile_levels=c(0.025,0.25,0.5,0
   return(fcst_wind)
 }
 
-crps[2] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_mslp,'wind'))
-crps
+crps[2] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_mslp,'wind',init_dates=init_dates))
 
 wind_emos_tl_multi_clct = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution
@@ -1254,8 +1254,7 @@ wind_emos_tl_multi_clct = function(init_date, quantile_levels=c(0.025,0.25,0.5,0
   return(fcst_wind)
 }
 
-crps[3] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_clct,'wind'))
-crps
+crps[3] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_clct,'wind',init_dates=init_dates))
 
 wind_emos_tl_multi_temp = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution
@@ -1320,8 +1319,9 @@ wind_emos_tl_multi_temp = function(init_date, quantile_levels=c(0.025,0.25,0.5,0
   return(fcst_wind)
 }
 
-crps[4] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_temp,'wind'))
+crps[4] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_temp,'wind',init_dates=init_dates))
 crps
+save(crps, file='graphics and tables for elaboration/weather/additional_regressors/wind/scores.RData')
 
 
 # WEEK 4: DAX GARCH HYPERTUNING -------------------------------------------
@@ -1552,15 +1552,16 @@ scores_temp
 source('model_wind.R')
 scores_wind = matrix(nrow=4, ncol=1, 0)
 rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'Mixture', 'Univariate + Boosting')
-scores_wind[1] = evaluate_model_weather(wind_emos_tl_multi,'wind')
-scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind')
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
+scores_wind[1] = evaluate_model_weather(wind_emos_tl_multi,'wind',init_dates=init_dates)
+scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind',init_dates=init_dates)
 # Try out mixture:
 wind_mixture_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   fc1 = wind_emos_tl_multi(init_date, quantile_levels)
   fc2 = wind_emos_tl_multi_boosting(init_date, quantile_levels)
   fc = combine_forecasts(fc1, fc2)
 }
-scores_wind[3] = evaluate_model_weather(wind_mixture_test,'wind')
+scores_wind[3] = evaluate_model_weather(wind_mixture_test,'wind',init_dates=init_dates)
 # Test: Univariate wind EMOS with boosting
 wind_emos_tl_boost = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution
@@ -1625,11 +1626,11 @@ wind_emos_tl_boost = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.
     return(pars)
   }
 }
-scores_wind[4] = evaluate_model_weather(wind_emos_tl_boost,'wind')
+scores_wind[4] = evaluate_model_weather(wind_emos_tl_boost,'wind',init_dates=init_dates)
 scores_wind
 # BOOSTING OUTPERFPORMS PURE EMOS AND MIXTURE (and quite heavily to be honest)
-save(scores_temp, scores_wind, file = "EMOS_boosting_scores.RData")
-
+save(scores_temp, scores_wind, file = "graphics and tables for elaboration/weather/EMOS_boosting_scores.RData")
+load(file = "graphics and tables for elaboration/weather/EMOS_boosting_scores.RData")
 
 # WEEK 6: Evaluate current DAX model --------------------------------------
 
@@ -1847,7 +1848,9 @@ df_test = get_current_wind_data('2021-11-03')
 df_pred_test = qrf_feature_eng_predict(df_test, lt = 36, '2021-11-03')
 head(df_pred_test)
 predict(qrf, newdata = df_pred_test, what = c(0.025,0.25,0.5,0.75,0.975))
-# Now i have addded the function wind_qrf to model_wind.R based on this work, so lets test it
+# Now i have added the function wind_qrf to model_wind.R based on this work, so lets test it
+# Also added the feature engineering functions on better fashion in toolkit:
+source("toolkit.R")
 fc = wind_qrf('2021-10-27')
 fc
 plot_forecasts_weather('2021-10-27', fc, history_size=14, ylim=c(0,40),
@@ -1859,13 +1862,24 @@ score
 
 
 init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24')
-scores_wind = matrix(nrow=5, ncol=1, 0)
-rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'QRF', 'QRF Var1', 'QRF Var2')
+scores_wind = matrix(nrow=6, ncol=1, 0)
+rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'QRF', 'QRF Var1', 'QRF Var2', 'QRF Var 3')
 scores_wind[1] = evaluate_model_weather(wind_emos_tl_multi,'wind',init_dates=init_dates)
 scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind',init_dates=init_dates)
-scores_wind[3] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates)
-scores_wind[4] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates, ntree=2000)
-scores_wind[5] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates, nodesize=3)
+scores_runs_3 = matrix(NA,5,1)
+scores_runs_4 = matrix(NA,5,1)
+scores_runs_5 = matrix(NA,5,1)
+scores_runs_6 = matrix(NA,5,1)
+for(run in 1:5){
+  scores_runs_3[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates)
+  scores_runs_4[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates, ntree=2000)
+  scores_runs_5[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates, nodesize=3)
+  scores_runs_6[run] = evaluate_model_weather(wind_qrf,'wind',init_dates=init_dates, ntree=2000, nodesize=3)
+}
+scores_wind[3] = mean(scores_runs_3)
+scores_wind[4] = mean(scores_runs_4)
+scores_wind[5] = mean(scores_runs_5)
+scores_wind[6] = mean(scores_runs_6)
 scores_wind
 
 # Check if combination of boosting and QRF makes the model better
@@ -1876,8 +1890,9 @@ boosting_qrf_comb = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.
 }
 test_score = evaluate_model_weather(boosting_qrf_comb,'wind',init_dates=init_dates)
 test_score
-test_score = evaluate_model_weather(boosting_qrf_comb,'wind',init_dates=init_dates, weights=c(0.8,0.2))
-test_score
+#test_score = evaluate_model_weather(boosting_qrf_comb,'wind',init_dates=init_dates, weights=c(0.8,0.2))
+#test_score
+save(scores_wind, test_score, file='graphics and tables for elaboration/weather/qrf_wind_base_scores.RData')
 
 
 # WEEEK 7: QRF with additional variables -----------------------------------
@@ -1938,7 +1953,7 @@ for (model in 4:11){
   print(scores_wind)
 }
 scores_wind
-
+save(scores_wind, file='graphics and tables for elaboration/weather/qrf_wind_scores_additional_regressors.RData')
 
 # WEEK 7: QRF for temp ----------------------------------------------------
 
@@ -2160,6 +2175,8 @@ scores_temp
 # Because of the random sampling in Random Forests, too many variables seem to not hurt that mutch
 
 ## NOW: SAME FOR WIND
+source('model_wind.R')
+
 wind_qrf_test_many = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
   df = get_hist_wind_data() %>% na.omit
   fcst = matrix(nrow = 5, ncol = length(quantile_levels))
@@ -2215,7 +2232,6 @@ for(model in 1:2){
   scores_wind_additional[model] = mean(scores_runs)
 }
 scores_wind_additional
-
 scores_wind
 
 # And assess variable importance:
@@ -2234,6 +2250,8 @@ for (lead_time in c(36,48,60,72,84)){
 }
 importances_wind
 
-#save(scores_wind, scores_temp, scores_wind_additional, scores_temp_additional, 
-#     importances_temp, importances_temp_less, importances_wind,
-#     file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
+save(scores_wind, scores_temp, scores_wind_additional, scores_temp_additional, 
+     importances_temp, importances_temp_less, importances_wind,
+     file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
+
+#load(file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
