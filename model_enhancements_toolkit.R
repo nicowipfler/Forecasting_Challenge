@@ -29,7 +29,8 @@ approx_crps = function(quantile_levels, fc, obs){
 }
 
 # Functions for model evaluation based on CRPS approx. via mean of quantile scores
-evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),init_dates, ...){
+evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
+                                  init_dates,show_vals=FALSE,...){
   #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
   #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
@@ -48,6 +49,15 @@ evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,
     forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
     # Compare to obs: Compute Quantile Scores / Approx- CRPS
     scores_dates[i] = approx_crps(quantile_levels, forecasts, observations)
+    if(show_vals){
+      for(h_num in 1:dim(forecasts)[1]){
+        print(paste0('Horizon number ',h_num,':'))
+        print(paste0('Observation: ',observations[h_num]))
+        for(q_num in 1:dim(forecasts)[1]){
+          print(paste0('Predicted quantile number ', q_num, ':', forecasts[h_num,q_num]))
+        }
+      }
+    }
   }
   final_score = mean(scores_dates)
   return(final_score)
@@ -139,6 +149,7 @@ get_obs = function(variable,init_date){
                             MESS_DATUM == dates[3]|
                             MESS_DATUM == dates[4]|
                             MESS_DATUM == dates[5])$F
+    observations = observations * 3.6
   } else if (variable=='air_temperature'){
     observations = subset(obs_data,
                           MESS_DATUM == dates[1]|
