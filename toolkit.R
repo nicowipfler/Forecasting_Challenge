@@ -184,3 +184,24 @@ qrf_feature_eng_predict = function(df, lt, init_date, addmslp=FALSE, addclct=FAL
   }
   return(df_working)
 }
+
+dax_qrf_feature_eng_train = function(init_date){
+  data = getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-1000, to = as.Date(init_date)+1, auto.assign=FALSE)
+  data$RSI = RSI(data$GDAXI.Adjusted)
+  data$Stoch_Oscill = stoch(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
+  data$MACD = MACD(data$GDAXI.Adjusted)
+  data$ROC = ROC(data$GDAXI.Adjusted)
+  data$WPR = WPR(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
+  data$CCI = CCI(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
+  data$ADX = ADX(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
+  data$OBV = OBV(data$GDAXI.Adjusted, data$GDAXI.Volume)
+  data$MA200 = SMA(data$GDAXI.Adjusted, n=200)
+  data$ret1 = compute_return(matrix(data$GDAXI.Adjusted), h = 1)
+  data$ret2 = compute_return(matrix(data$GDAXI.Adjusted), h = 2)
+  data$ret3 = compute_return(matrix(data$GDAXI.Adjusted), h = 3)
+  data$ret4 = compute_return(matrix(data$GDAXI.Adjusted), h = 4)
+  data$ret5 = compute_return(matrix(data$GDAXI.Adjusted), h = 5)
+  data = data[,c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200", 
+                 "ret1", "ret2", "ret3", "ret4", "ret5")] %>% na.omit
+  return(data)
+}
