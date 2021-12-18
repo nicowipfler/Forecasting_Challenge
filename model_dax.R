@@ -177,3 +177,12 @@ dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.9
   fcst_out = combine_forecasts(fcst_garch, fcst_quantreg, weights = c(weight_garch, 1-weight_garch))
   return(fcst_out)
 }
+
+
+dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
+  #'
+  #'
+  
+  # Get data
+  data = dax_qrf_feature_eng_train(init_date)
+}
