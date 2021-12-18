@@ -1895,7 +1895,7 @@ test_score
 save(scores_wind, test_score, file='graphics and tables for elaboration/weather/qrf_wind_base_scores.RData')
 
 
-# WEEEK 7: QRF with additional variables -----------------------------------
+# WEEK 7: QRF with additional variables -----------------------------------
 
 
 # Feature Engineering
@@ -2255,3 +2255,104 @@ save(scores_wind, scores_temp, scores_wind_additional, scores_temp_additional,
      file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
 
 #load(file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
+
+
+# WEEK 9: Feature Engineering DAX QRF -------------------------------------
+
+
+library('TTR')
+source('model_dax.R')
+#testdata = get_dax_data_directly('2021-12-18') %>% na.omit
+data = getSymbols('^GDAXI',src='yahoo', from = as.Date('2021-12-18')-1000, to = as.Date('2021-12-18')+1, auto.assign=FALSE)
+data$RSI = RSI(data$GDAXI.Adjusted)
+data$Stoch_Oscill = stoch(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
+data$MACD = MACD(data$GDAXI.Adjusted)
+data$ROC = ROC(data$GDAXI.Adjusted)
+data$WPR = WPR(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
+data$CCI = CCI(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
+data$ADX = ADX(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
+data$OBV = OBV(data$GDAXI.Adjusted, data$GDAXI.Volume)
+data$MA200 = SMA(data$GDAXI.Adjusted, n=200)
+data$ret1 = compute_return(matrix(data$GDAXI.Adjusted), h = 1)
+data$ret2 = compute_return(matrix(data$GDAXI.Adjusted), h = 2)
+data$ret3 = compute_return(matrix(data$GDAXI.Adjusted), h = 3)
+data$ret4 = compute_return(matrix(data$GDAXI.Adjusted), h = 4)
+data$ret5 = compute_return(matrix(data$GDAXI.Adjusted), h = 5)
+data = data[,c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200", 
+               "ret1", "ret2", "ret3", "ret4", "ret5")] %>% na.omit
+head(data)
+dim(data)
+
+# TRAIN-TEST-SPLIT!
+train_data = data[1:400,]
+test_data = data[401:495]
+
+# QRF for horizon of 1 day
+df_predict_train = train_data[,c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200")]
+df_predict_train = df_predict_train[-dim(df_predict_train)[1],] # Leave out last predictors
+df_obs_train = train_data[,c("ret1")]
+df_obs_train = df_obs_train[-1,] # Leave out first obs -> Predict ret1 based on variables measured a day before
+qrf = quantregForest(df_predict_train, df_obs_train, nthreads = 4)
+qrf$importance
+
+# Test
+quantile_levels = c(0.025,0.25,0.5,0.75,0.975)
+df_predict_test = test_data[,c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200")]
+df_predict_test = df_predict_test[-dim(df_predict_test)[1],] # Leave out last predictors
+df_obs_test = test_data[,c("ret1")]
+df_obs_test = df_obs_test[-1,] # Leave out first obs -> Predict ret1 based on variables measured a day before
+forecasts = predict(qrf, newdata = df_predict_test, what = quantile_levels)
+tail(forecasts)
+
+# Evaluate
+scores = matrix(NA, length(df_obs_test), 1)
+rownames(scores) = index(df_obs_test)
+scores
+for(i in 1:length(scores)){
+  quantile_scores = matrix(NA, 5, 1)
+  for(q_num in 1:5){
+    quantile_scores[q_num] = quantile_score(quantile_levels[q_num], forecasts[i, q_num], df_obs_test[i])
+  }
+  scores[i] = mean(quantile_scores)
+}
+scores
+mean(scores)
+
+# Compare to different models (they do it for all horizons..)
+load('graphics and tables for elaboration/DAX/evaluation_dax_models_week_6.RData')
+scores
+scores_dax_4weeks
+# QRF outperforms all of them!
+# But lets compare it to 5-day forecast of QRF to validate this
+
+# QRF for horizon of 5 days
+df_predict_train = train_data[,c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200")]
+df_predict_train = df_predict_train[-((dim(df_predict_train)[1]-4):dim(df_predict_train)[1]),] # Leave out last 5 predictors
+df_obs_train = train_data[,c("ret5")]
+df_obs_train = df_obs_train[-(1:5),] # Leave out first 5 obs -> Predict ret5 based on variables measured 5 day before
+qrf = quantregForest(df_predict_train, df_obs_train, nthreads = 4)
+qrf$importance
+
+# Test
+quantile_levels = c(0.025,0.25,0.5,0.75,0.975)
+df_predict_test = test_data[,c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200")]
+df_predict_test = df_predict_test[-((dim(df_predict_train)[1]-4):dim(df_predict_train)[1]),] # Leave out last predictors
+df_obs_test = test_data[,c("ret5")]
+df_obs_test = df_obs_test[-(1:5),] # Leave out first obs -> Predict ret1 based on variables measured a day before
+forecasts = predict(qrf, newdata = df_predict_test, what = quantile_levels)
+tail(forecasts)
+
+# Evaluate
+scores_5d = matrix(NA, length(df_obs_test), 1)
+rownames(scores_5d) = index(df_obs_test)
+scores_5d
+for(i in 1:length(scores_5d)){
+  quantile_scores = matrix(NA, 5, 1)
+  for(q_num in 1:5){
+    quantile_scores[q_num] = quantile_score(quantile_levels[q_num], forecasts[i, q_num], df_obs_test[i])
+  }
+  scores_5d[i] = mean(quantile_scores)
+}
+scores_5d
+mean(scores_5d)
+# Ok, so lets implement the model and evaluate it afterwards!
