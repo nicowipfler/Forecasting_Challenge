@@ -8,6 +8,34 @@ load_libs = function(libs){
   lapply(libs, require, character.only = TRUE)
 }
 
+# Functions for combination of forecasts
+combine_forecasts = function(fc_in1, fc_in2, weights=c(0.5,0.5)){
+  #' Function that combines two forecasts by weighted averaging. Standard: arithmetic mean
+  #' fc_in1 and fc_in2: matrices containing the forecasts
+  
+  fc_out = weights[1] * fc_in1 + weights[2] * fc_in2
+  return(fc_out)
+}
+
+combine_many_forecasts = function(fc_array, weights=0){
+  #' Function that combines any amount of forecasts by weighted averaging. Standard: arithmetic mean
+  #' fc_array: array of matrices containing the forecasts
+  #' weights: list of weights belonging to the forecasts. 0 indicates arithmetic mean
+  
+  n = dim(fc_array)[3]
+  if(weights == 0){
+    weights = rep(1/n,n)
+  }
+  fc_out = matrix(nrow=dim(fc_array)[1], ncol=dim(fc_array)[2], 0)
+  for(i in 1:n){
+    fc_out = fc_out + fc_array[,,i] * weights[i]
+  }
+  fc_out
+  return(fc_out)
+}
+
+# Weather Toolkit ---------------------------------------------------------
+
 # Functions to get historical and current ensemble predictions
 get_hist_temp_data = function(){
   #' Function to get historical temp data
@@ -61,33 +89,7 @@ get_current_data_varname = function(varname, init_date){
   return(current_data)
 }
 
-# Functions for combination of forecasts
-combine_forecasts = function(fc_in1, fc_in2, weights=c(0.5,0.5)){
-  #' Function that combines two forecasts by weighted averaging. Standard: arithmetic mean
-  #' fc_in1 and fc_in2: matrices containing the forecasts
-  
-  fc_out = weights[1] * fc_in1 + weights[2] * fc_in2
-  return(fc_out)
-}
-
-combine_many_forecasts = function(fc_array, weights=0){
-  #' Function that combines any amount of forecasts by weighted averaging. Standard: arithmetic mean
-  #' fc_array: array of matrices containing the forecasts
-  #' weights: list of weights belonging to the forecasts. 0 indicates arithmetic mean
-  
-  n = dim(fc_array)[3]
-  if(weights == 0){
-    weights = rep(1/n,n)
-  }
-  fc_out = matrix(nrow=dim(fc_array)[1], ncol=dim(fc_array)[2], 0)
-  for(i in 1:n){
-    fc_out = fc_out + fc_array[,,i] * weights[i]
-  }
-  fc_out
-  return(fc_out)
-}
-
-# Functions for feature engineering
+# Functions for feature engineering WEATHER
 qrf_feature_eng_train = function(df, lt, addmslp=FALSE, addclct=FALSE, addrad=FALSE){
   #' Function that makes feature engineering for weather FALSEile regression forests training, returns ensemble statistics used for qrf
   #' It gets summary statistics for target variable and adds simple summary statistics for additional regressors, if wanted
@@ -185,8 +187,62 @@ qrf_feature_eng_predict = function(df, lt, init_date, addmslp=FALSE, addclct=FAL
   return(df_working)
 }
 
-dax_qrf_feature_eng_train = function(init_date){
-  data = getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-1000, to = as.Date(init_date)+1, auto.assign=FALSE)
+# DAX Toolkit -------------------------------------------------------------
+
+# Functions to get and prepare DAX data
+compute_return = function(y, type = "log", h = 1){
+  #' Function to compute log returns of DAX
+  #' y: observations
+  #' type: log or not
+  #' h: int, horizon
+  
+  n <- length(y)
+  y2 <- y[-(1:h)] # exclude first h observations
+  y1 <- y[-(n:(n-h+1))] # exclude last h observations
+  # compute h-step cumulative returns
+  if (type == "log"){
+    ret <- c(rep(NA, h), 100*(log(y2)-log(y1)))
+  } else {
+    ret <- c(rep(NA, h), 100*(y2-y1)/y1)
+  }
+  ret
+}
+
+get_dax_data = function(init_date){
+  #' Get the DAX data of the corresponding date loaded from the folder data_dir
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  
+  data_dir = "C://dev//Forecasting_Challenge//data//dax//"
+  dat = read.table(paste0(data_dir,init_date,"-dax.csv"), sep = ",", header = TRUE,
+                   na.strings = "null") %>%
+    mutate(ret1 = compute_return(Adj.Close, h = 1),
+           ret2 = compute_return(Adj.Close, h = 2),
+           ret3 = compute_return(Adj.Close, h = 3),
+           ret4 = compute_return(Adj.Close, h = 4),
+           ret5 = compute_return(Adj.Close, h = 5),
+           Date = ymd(Date))
+  return(dat)
+}
+
+get_dax_data_directly = function(init_date){
+  #' Get the DAX data of the corresponding date loaded directly from yahoo finance
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  
+  dat = data.frame(getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-2000, to = as.Date(init_date)+1, auto.assign=FALSE)) %>%
+    mutate(ret1 = compute_return(GDAXI.Adjusted, h = 1),
+           ret2 = compute_return(GDAXI.Adjusted, h = 2),
+           ret3 = compute_return(GDAXI.Adjusted, h = 3),
+           ret4 = compute_return(GDAXI.Adjusted, h = 4),
+           ret5 = compute_return(GDAXI.Adjusted, h = 5))#,
+  #Date = ymd(Date))
+  dat = cbind(Date = rownames(dat), dat)
+  return(dat)
+}
+
+dax_qrf_feature_eng_train = function(init_date, hist=1000){
+  #' Function for feature engineering for DAX QRF (according to paper DAX_QRF_Inputs and ..._2)
+  
+  data = getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-hist, to = as.Date(init_date)+1, auto.assign=FALSE)
   data$RSI = RSI(data$GDAXI.Adjusted)
   data$Stoch_Oscill = stoch(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
   data$MACD = MACD(data$GDAXI.Adjusted)

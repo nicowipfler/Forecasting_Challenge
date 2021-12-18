@@ -1,58 +1,6 @@
 # This file contains several functions that serve the purpose of estimating DAX (log) returns
 
 
-compute_return = function(y, type = "log", h = 1){
-  #' Function to compute log returns of DAX
-  #' y: observations
-  #' type: log or not
-  #' h: int, horizon
-  
-  n <- length(y)
-  y2 <- y[-(1:h)] # exclude first h observations
-  y1 <- y[-(n:(n-h+1))] # exclude last h observations
-  # compute h-step cumulative returns
-  if (type == "log"){
-    ret <- c(rep(NA, h), 100*(log(y2)-log(y1)))
-  } else {
-    ret <- c(rep(NA, h), 100*(y2-y1)/y1)
-  }
-  ret
-}
-
-
-get_dax_data = function(init_date){
-  #' Get the DAX data of the corresponding date loaded from the folder data_dir
-  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
-  
-  data_dir = "C://dev//Forecasting_Challenge//data//dax//"
-  dat = read.table(paste0(data_dir,init_date,"-dax.csv"), sep = ",", header = TRUE,
-                   na.strings = "null") %>%
-    mutate(ret1 = compute_return(Adj.Close, h = 1),
-           ret2 = compute_return(Adj.Close, h = 2),
-           ret3 = compute_return(Adj.Close, h = 3),
-           ret4 = compute_return(Adj.Close, h = 4),
-           ret5 = compute_return(Adj.Close, h = 5),
-           Date = ymd(Date))
-  return(dat)
-}
-
-
-get_dax_data_directly = function(init_date){
-  #' Get the DAX data of the corresponding date loaded directly from yahoo finance
-  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
-  
-  dat = data.frame(getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-2000, to = as.Date(init_date)+1, auto.assign=FALSE)) %>%
-    mutate(ret1 = compute_return(GDAXI.Adjusted, h = 1),
-           ret2 = compute_return(GDAXI.Adjusted, h = 2),
-           ret3 = compute_return(GDAXI.Adjusted, h = 3),
-           ret4 = compute_return(GDAXI.Adjusted, h = 4),
-           ret5 = compute_return(GDAXI.Adjusted, h = 5))#,
-           #Date = ymd(Date))
-  dat = cbind(Date = rownames(dat), dat)
-  return(dat)
-}
-
-
 dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_data = FALSE, 
                         data = NA, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
   #' DAX Forecast using quantile regression with moving_window of rolling_window
