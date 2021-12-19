@@ -1,7 +1,7 @@
 # Script containing several exploratory analyses aiming to improve existing models or to find new ones
 source('toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
-                   'rugarch','quantmod','quantregForest','moments'))
+                   'rugarch','quantmod','quantregForest','moments','TTR'))
 source('model_enhancements_toolkit.R')
 #
 
@@ -2320,7 +2320,7 @@ mean(scores)
 
 # Compare to different models (they do it for all horizons..)
 load('graphics and tables for elaboration/DAX/evaluation_dax_models_week_6.RData')
-scores
+mean(scores)
 scores_dax_4weeks
 # QRF outperforms all of them!
 # But lets compare it to 5-day forecast of QRF to validate this
@@ -2356,3 +2356,41 @@ for(i in 1:length(scores_5d)){
 scores_5d
 mean(scores_5d)
 # Ok, so lets implement the model and evaluate it afterwards!
+# Implemented:
+dax_qrf('2021-11-03')
+dax_quantgarch('2021-11-03')
+
+
+# WEEK 9: Evaluate QRF DAX ------------------------------------------------
+
+
+source('model_dax.R')
+init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
+                            '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
+
+qrf_scores_per_horizon = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE)
+qrf_scores_per_horizon
+
+qrf_futures_scores_per_horizon = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE, add_futures=TRUE)
+qrf_futures_scores_per_horizon
+
+quantgarch_scores_per_horizon = evaluate_model_dax(dax_quantgarch, init_dates=init_dates, per_horizon=TRUE)
+quantgarch_scores_per_horizon
+
+garch_scores_per_horizon = evaluate_model_dax(dax_ugarch_combined, init_dates=init_dates, per_horizon=TRUE)
+garch_scores_per_horizon
+
+quantreg_scores_per_horizon = evaluate_model_dax(dax_quantreg, init_dates=init_dates, per_horizon=TRUE, quantreg=TRUE)
+quantreg_scores_per_horizon
+
+baseline_scores_per_horizon = evaluate_model_dax(dax_baseline, init_dates=init_dates, per_horizon=TRUE)
+baseline_scores_per_horizon
+
+model_scores = cbind(qrf_scores_per_horizon, qrf_futures_scores_per_horizon, quantgarch_scores_per_horizon, 
+                     garch_scores_per_horizon, quantreg_scores_per_horizon, baseline_scores_per_horizon)
+model_scores
+
+
+#load('graphics and tables for elaboration/DAX/quantgarch_hyperparam_scores.RData')
+#min(hyperparam_scores)
+save(model_scores, file='graphics and tables for elaboration/DAX/week9_modelscores.RData')
