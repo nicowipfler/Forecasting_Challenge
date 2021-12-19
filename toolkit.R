@@ -239,10 +239,18 @@ get_dax_data_directly = function(init_date){
   return(dat)
 }
 
-dax_qrf_feature_eng_train = function(init_date, hist=1000){
+dax_qrf_feature_eng_train = function(init_date, hist=1000, add_futures=TRUE){
   #' Function for feature engineering for DAX QRF (according to paper DAX_QRF_Inputs and ..._2)
   
-  data = getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-hist, to = as.Date(init_date)+1, auto.assign=FALSE)
+  predictor_variables = c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200", 
+                          "ret1", "ret2", "ret3", "ret4", "ret5")
+  data = getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-hist, to = as.Date(init_date)+1, auto.assign=FALSE) %>% na.omit
+  if(add_futures){
+    data = cbind(data, getSymbols('DY',src='yahoo', from = as.Date(init_date)-hist, 
+                                  to = as.Date(init_date)+1, auto.assign=FALSE) %>% na.omit) %>% na.omit
+    predictor_variables = append(predictor_variables, "DY.Adjusted")
+    predictor_variables = append(predictor_variables, "DY.Volume")
+  }
   data$RSI = RSI(data$GDAXI.Adjusted)
   data$Stoch_Oscill = stoch(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
   data$MACD = MACD(data$GDAXI.Adjusted)
@@ -257,7 +265,6 @@ dax_qrf_feature_eng_train = function(init_date, hist=1000){
   data$ret3 = compute_return(matrix(data$GDAXI.Adjusted), h = 3)
   data$ret4 = compute_return(matrix(data$GDAXI.Adjusted), h = 4)
   data$ret5 = compute_return(matrix(data$GDAXI.Adjusted), h = 5)
-  data = data[,c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200", 
-                 "ret1", "ret2", "ret3", "ret4", "ret5")] %>% na.omit
+  data = data[,predictor_variables] %>% na.omit
   return(data)
 }
