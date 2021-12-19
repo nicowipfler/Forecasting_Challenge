@@ -1,6 +1,22 @@
 # This file contains several functions that serve the purpose of estimating wind
 
 
+wind_baseline = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+  #' Function that implements baseline model for wind: Use raw ensemble quantiles
+  #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  
+  ensemble_data = get_current_wind_data(init_date)
+  fcst = matrix(ncol = length(quantile_levels), nrow = 5)
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    subset = subset(ensemble_data, fcst_hour==lead_time)
+    fcst[i,] = quantile(subset, quantile_levels, na.rm=TRUE)
+    i = i+1
+  }
+  return(fcst)
+}
+
 wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   #' Function to make forecasts of temp using EMOS with truncated normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
