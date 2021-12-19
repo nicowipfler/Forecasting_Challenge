@@ -5,15 +5,13 @@
 
 
 # load librarys
-source('toolkit.R')
+source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
                    'rugarch','quantmod','quantregForest','moments','TTR'))
 # load functions for forecasting, forecast evaluation and forecast export
-source('model_dax.R')
-source('model_wind.R')
-source('model_temp.R')
-source('visual_checks.R')
-source('create_csv.R')
+source('src/model_dax.R')
+source('src/model_wind.R')
+source('src/model_temp.R')
 #TODO Temperature: Get from git repo berlin
 #TODO Wind: Get from git repo berlin
 

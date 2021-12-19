@@ -1,8 +1,8 @@
 # Script containing several exploratory analyses aiming to improve existing models or to find new ones
-source('toolkit.R')
+source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
                    'rugarch','quantmod','quantregForest','moments','TTR'))
-source('model_enhancements_toolkit.R')
+source('src/model_enhancements_toolkit.R')
 #
 
 
@@ -88,8 +88,8 @@ for (i in 1:5){
 
 
 library('ggplot2')
-source('model_dax.R')
-source('model_enhancements_toolkit.R')
+source('src/model_dax.R')
+source('src/model_enhancements_toolkit.R')
 data = get_dax_data('2021-10-27')
 # Start erst nach der Finanzkrise
 data = subset(data, as.Date(Date) > '2010-01-01')
@@ -160,9 +160,9 @@ dev.off()
 
 
 # as common
-source('toolkit.R')
+source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2'))
-source('model_dax.R')
+source('src/model_dax.R')
 # for garch model
 library('rugarch')
 # for qq plots
@@ -315,12 +315,11 @@ infocriteria(ugarch_fit_test)
 
 
 # Prep
-source('toolkit.R')
+source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
-source('model_wind.R')
-source('model_temp.R')
-source('visual_checks.R')
-source('model_enhancements_toolkit.R')
+source('src/model_wind.R')
+source('src/model_temp.R')
+source('src/model_enhancements_toolkit.R')
 
 #### Testversion der Funktion temp_emos
 emos_temp_test = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975),season_radius=0,lead_time=36){
@@ -431,9 +430,9 @@ for (n_lead_time in 1:5){
 # WEEK 4: Additional regressors for weather -------------------------------
 
 
-source('toolkit.R')
+source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2'))
-source('model_temp.R')
+source('src/model_temp.R')
 # Start with temp
 data_temp = get_hist_temp_data()
 data_temp
@@ -652,7 +651,7 @@ eval
 # WEEK 4: Selection of regressors for multivariate temp EMOS model --------
 
 
-source('model_temp.R')
+source('src/model_temp.R')
 # Get temp
 data_temp = get_hist_temp_data()
 # Get cloud cover
@@ -732,7 +731,7 @@ grid.arrange(plot1, plot2, plot3, plot4, plot5, cor_table, nrow = 3)
 # CLCT MAY BE USED TO ENHANCE FORECASTS AT DAY, MSLP AT NIGHT
 
 # Additionally: Check wind
-source('model_wind.R')
+source('src/model_wind.R')
 data_wind = get_hist_wind_data()
 for (n_horizon in 1:5){
   horizon = horizons[n_horizon]
@@ -1017,8 +1016,8 @@ crps
 # WEEK 4: Selection of regressors for multivariate wind EMOS model --------
 
 
-source('model_temp.R')
-source('model_wind.R')
+source('src/model_temp.R')
+source('src/model_wind.R')
 # Get wind and temp
 data_wind = get_hist_wind_data()
 data_temp = get_hist_temp_data()
@@ -1115,10 +1114,10 @@ grid.arrange(plot1, plot2, plot3, plot4, plot5, cor_table, nrow = 3)
 # WEEK 4: Model selection wind EMOS ---------------------------------------
 
 
-source('toolkit.R')
+source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
-source('model_enhancements_toolkit.R')
-source('model_wind.R')
+source('src/model_enhancements_toolkit.R')
+source('src/model_wind.R')
 crps = matrix(nrow=1,ncol=4)
 init_dates = c('2021-10-27', '2021-11-03', '2021-11-10')
 crps[1] = suppressWarnings(evaluate_model_weather(wind_emos_tl,'wind',init_dates=init_dates))
@@ -1407,10 +1406,10 @@ load('C://dev//Forecasting_Challenge//graphics and tables for elaboration//DAX//
 # WEEK 5: GARCH history_size ----------------------------------------------
 
 
-source('toolkit.R')
+source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
-source('model_dax.R')
-source('model_enhancements_toolkit.R')
+source('src/model_dax.R')
+source('src/model_enhancements_toolkit.R')
 test_length = 2000
 scores = matrix(nrow = test_length+1, ncol = 2)
 # Benchmark: Current model starting on 2020-01-01
@@ -1475,10 +1474,10 @@ ggplot(as.data.frame(scores), aes(x=window, y=score)) + geom_point() + geom_line
 # WEEK 5: temp (gradient) boosting ----------------------------------------
 
 
-source('toolkit.R')
+source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2','rugarch'))
-source('model_temp.R')
-source('model_enhancements_toolkit.R')
+source('src/model_temp.R')
+source('src/model_enhancements_toolkit.R')
 scores_temp = matrix(nrow=4, ncol=1, 0)
 rownames(scores_temp) = c('Multi EMOS', '+ Boosting', 'Mixture', 'Univariate + Boosting')
 scores_temp[1] = evaluate_model_weather(temp_emos_multi,'air_temperature')
@@ -1549,7 +1548,7 @@ scores_temp
 # WEEK 5: wind (gradient) boosting  ---------------------------------------
 
 
-source('model_wind.R')
+source('src/model_wind.R')
 scores_wind = matrix(nrow=4, ncol=1, 0)
 rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'Mixture', 'Univariate + Boosting')
 init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
@@ -1635,7 +1634,7 @@ load(file = "graphics and tables for elaboration/weather/EMOS_boosting_scores.RD
 # WEEK 6: Evaluate current DAX model --------------------------------------
 
 
-source('model_dax.R')
+source('src/model_dax.R')
 # Model scores based on the last 4 weeks
 init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
 scores_dax_4weeks = matrix(nrow=5, ncol=1, 0)
@@ -1784,7 +1783,7 @@ weight_scores
 # WEEK 6: Optimal weights temp? -------------------------------------------
 
 
-source('model_temp.R')
+source('src/model_temp.R')
 init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
 weight_scores_temp_boost = matrix(NA, nrow = 11, ncol = 1)
 weights = (0:10)/10
@@ -1804,7 +1803,7 @@ save(weight_scores_temp_boost, file='opt_weights_temp_boost_mixture.RData')
 
 library(quantregForest)
 library(moments)
-source("model_wind.R")
+source("src/model_wind.R")
 # First: just for lead time 36
 # Feature Engineering
 df = get_hist_wind_data() %>% na.omit
@@ -1850,7 +1849,7 @@ head(df_pred_test)
 predict(qrf, newdata = df_pred_test, what = c(0.025,0.25,0.5,0.75,0.975))
 # Now i have added the function wind_qrf to model_wind.R based on this work, so lets test it
 # Also added the feature engineering functions on better fashion in toolkit:
-source("toolkit.R")
+source("src/toolkit.R")
 fc = wind_qrf('2021-10-27')
 fc
 plot_forecasts_weather('2021-10-27', fc, history_size=14, ylim=c(0,40),
@@ -1960,7 +1959,7 @@ save(scores_wind, file='graphics and tables for elaboration/weather/qrf_wind_sco
 
 library('quantregForest')
 library('moments')
-source('model_temp.R')
+source('src/model_temp.R')
 # I directly implemented qrf for temp, as i wrote the functions for wind qrf in a way i can easily reuse them for temp
 temp_qrf('2021-11-03')
 temp_emos_multi_boosting_mixture('2021-11-03', weights=c(0.8,0.2)) 
@@ -2175,7 +2174,7 @@ scores_temp
 # Because of the random sampling in Random Forests, too many variables seem to not hurt that mutch
 
 ## NOW: SAME FOR WIND
-source('model_wind.R')
+source('src/model_wind.R')
 
 wind_qrf_test_many = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
   df = get_hist_wind_data() %>% na.omit
@@ -2261,7 +2260,7 @@ save(scores_wind, scores_temp, scores_wind_additional, scores_temp_additional,
 
 
 library('TTR')
-source('model_dax.R')
+source('src/model_dax.R')
 #testdata = get_dax_data_directly('2021-12-18') %>% na.omit
 data = getSymbols('^GDAXI',src='yahoo', from = as.Date('2021-12-18')-1000, to = as.Date('2021-12-18')+1, auto.assign=FALSE)
 data$RSI = RSI(data$GDAXI.Adjusted)
@@ -2364,7 +2363,7 @@ dax_quantgarch('2021-11-03')
 # WEEK 9: Evaluate QRF DAX ------------------------------------------------
 
 
-source('model_dax.R')
+source('src/model_dax.R')
 init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
                             '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
 
