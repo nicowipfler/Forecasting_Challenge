@@ -7,7 +7,7 @@
 # load librarys
 source('toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
-                   'rugarch','quantmod','quantregForest','moments'))
+                   'rugarch','quantmod','quantregForest','moments','TTR'))
 # load functions for forecasting, forecast evaluation and forecast export
 source('model_dax.R')
 source('model_wind.R')
@@ -48,7 +48,7 @@ fcst_dax_garch_mixture
 
 ## COMBINATION
 fcst_dax_quantgarch_model = 'GARCH + Quantile Regression'
-fcst_dax_quantgarch = dax_quantgarch(date, history_size=1400)
+fcst_dax_quantgarch = dax_quantgarch(date)
 fcst_dax_quantgarch
 
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
