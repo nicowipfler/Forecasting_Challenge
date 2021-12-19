@@ -1,6 +1,16 @@
 # This file contains several functions that serve the purpose of estimating DAX (log) returns
 
 
+dax_baseline = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
+  data = get_dax_data_directly(init_date)
+  forecasts = matrix(NA, nrow=5, ncol=length(quantile_levels))
+  for(horizon in 1:5){
+    forecasts[horizon,] = quantile(data[,paste0('ret',horizon)], quantile_levels, na.rm=TRUE)
+  }
+  return(forecasts)
+}
+
+
 dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_data = FALSE, 
                         data = NA, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
   #' DAX Forecast using quantile regression with moving_window of rolling_window
@@ -50,7 +60,8 @@ dax_quantreg = function(init_date, transpose=FALSE, rolling_window=100, give_dat
 }
 
 
-dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_size = 1400, solver='solnp'){
+dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), 
+                      history_size = 1400, solver='solnp'){
   #' DAX Forecast using GARCH(n,m) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
@@ -88,10 +99,10 @@ dax_ugarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
 }
 
 
-dax_ugarch_combined = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), history_sizes, debug=FALSE){
+dax_ugarch_combined = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(1,1), 
+                               history_sizes=c(243,800,1030), debug=FALSE){
   #' DAX Forecast using GARCH(1,1) model with ARMA(1,1) model. Might be modularized further later on. Own GARCH model for each horizon
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
-  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' history_sizes: vector containing the sizes of the rolling window to be used, whereas 0 indicates the 2020-01-01, e.g. c(200,800)
   #' debug: boolean wether debugging (printing history_sizes)
@@ -115,8 +126,8 @@ dax_ugarch_combined = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.7
 }
 
 
-dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(6,6), history_size = 1400, 
-                          solver='solnp', rolling_window=800, weight_garch=0.5){
+dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(6,6), 
+                          history_size = 1400, solver='solnp', rolling_window=800, weight_garch=0.5){
   #' Arguments as used in subfunctions
   
   fcst_garch = dax_ugarch(init_date = init_date, quantile_levels = quantile_levels, 
@@ -127,10 +138,31 @@ dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.9
 }
 
 
-dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
-  #'
-  #'
+dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), add_futures=TRUE){
+  #' Function for Quantile Regression Forest for DAX using stock market statistics calculated from GDAXI values
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' add_futures: Boolean, wether to contain DAX Futures from DY (FDAX.EX)
   
   # Get data
-  data = dax_qrf_feature_eng_train(init_date)
+  predictor_variables = c("ret1", "RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV")
+  if(add_futures){
+    predictor_variables = append(predictor_variables, "DY.Adjusted")
+    predictor_variables = append(predictor_variables, "DY.Volume")
+  }
+  data = dax_qrf_feature_eng_train(init_date, add_futures=add_futures)
+  df_predict = data[dim(data)[1], predictor_variables]
+  # QRF
+  predictions = matrix(NA, ncol=length(quantile_levels), nrow=5)
+  for(horizon in 1:5){
+    # Training data
+    df_predict_train = data[1:(dim(data)[1]-1), predictor_variables]
+    df_predict_train = df_predict_train[-((dim(df_predict_train)[1]-(horizon-1)):dim(df_predict_train)[1]),] # Leave out some predictors
+    df_obs_train = data[1:(dim(data)[1]-1),c(paste0("ret",horizon))]
+    df_obs_train = df_obs_train[-(1:horizon),] # Leave out first 5 obs -> Predict ret5 based on variables measured 5 day before
+    # Train and predict
+    qrf = quantregForest(df_predict_train, df_obs_train, nthreads = 4)
+    predictions[horizon,] = predict(qrf, newdata = df_predict, what = quantile_levels)
+  }
+  return(predictions)
 }
