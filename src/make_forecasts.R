@@ -19,7 +19,7 @@ source('src/model_temp.R')
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2021-12-15'
+date = '2021-12-22'
 
 
 ### DAX +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -44,10 +44,20 @@ fcst_dax_garch_mixture = dax_ugarch_combined(date, garchorder=c(6,6),
                                              history_sizes=c(243,800,1030))
 fcst_dax_garch_mixture
 
-## COMBINATION
+## Quantile Regression + GARCH
 fcst_dax_quantgarch_model = 'GARCH + Quantile Regression'
 fcst_dax_quantgarch = dax_quantgarch(date)
 fcst_dax_quantgarch
+
+## QRF + GARCH
+fcst_dax_qrf_model = 'GARCH + QRF'
+fcst_dax_qrf = dax_qrf(date, add_futures=TRUE)
+fcst_dax_qrf
+
+## QRF + GARCH
+fcst_dax_qrfgarch_model = 'GARCH + QRF'
+fcst_dax_qrfgarch = dax_qrfgarch(date, add_futures=TRUE, weight_garch=0.9)
+fcst_dax_qrfgarch
 
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
 dax_model_name = fcst_dax_quantgarch_model
