@@ -138,7 +138,8 @@ dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.9
 }
 
 
-dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), add_futures=TRUE){
+dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), 
+                   add_futures=TRUE, add_msci=FALSE, add_ucits=FALSE, add_us_futures=FALSE){
   #' Function for Quantile Regression Forest for DAX using stock market statistics calculated from GDAXI values
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
@@ -150,7 +151,20 @@ dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), ad
     predictor_variables = append(predictor_variables, "DY.Adjusted")
     predictor_variables = append(predictor_variables, "DY.Volume")
   }
-  data = dax_qrf_feature_eng_train(init_date, add_futures=add_futures)
+  if(add_msci){
+    predictor_variables = append(predictor_variables, "XWD.TO.Adjusted")
+    predictor_variables = append(predictor_variables, "XWD.TO.Volume")
+  }
+  if(add_ucits){
+    predictor_variables = append(predictor_variables, "EXS1.DE.Adjusted")
+    predictor_variables = append(predictor_variables, "EXS1.DE.Volume")
+  }
+  if(add_us_futures){
+    predictor_variables = append(predictor_variables, "YM.F.Adjusted")
+    predictor_variables = append(predictor_variables, "YM.F.Volume")
+  }
+  data = dax_qrf_feature_eng_train(init_date, 
+                                   add_futures=add_futures, add_msci=add_msci, add_ucits=add_ucits, add_us_futures=add_us_futures)
   df_predict = data[dim(data)[1], predictor_variables]
   # QRF
   predictions = matrix(NA, ncol=length(quantile_levels), nrow=5)
@@ -165,4 +179,15 @@ dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), ad
     predictions[horizon,] = predict(qrf, newdata = df_predict, what = quantile_levels)
   }
   return(predictions)
+}
+
+dax_qrfgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(6,6), 
+                        history_size = 1400, solver='solnp', weight_garch=0.5, add_futures=TRUE){
+  #' Arguments as used in subfunctions
+  
+  fcst_garch = dax_ugarch(init_date = init_date, quantile_levels = quantile_levels, 
+                          garchorder = garchorder, history_size = history_size, solver = solver)
+  fcst_qrf = dax_qrf(init_date=init_date, quantile_levels=quantile_levels, add_futures=add_futures)
+  fcst_out = combine_forecasts(fcst_garch, fcst_qrf, weights = c(weight_garch, 1-weight_garch))
+  return(fcst_out)
 }

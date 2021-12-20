@@ -387,7 +387,7 @@ get_dax_data_directly = function(init_date){
   return(dat)
 }
 
-dax_qrf_feature_eng_train = function(init_date, hist=1000, add_futures=TRUE){
+dax_qrf_feature_eng_train = function(init_date, hist=1000, add_futures=TRUE, add_msci=FALSE, add_ucits=FALSE, add_us_futures=FALSE){
   #' Function for feature engineering for DAX QRF (according to paper DAX_QRF_Inputs and ..._2)
   
   predictor_variables = c("RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV", "MA200", 
@@ -398,6 +398,24 @@ dax_qrf_feature_eng_train = function(init_date, hist=1000, add_futures=TRUE){
                                   to = as.Date(init_date)+1, auto.assign=FALSE) %>% na.omit) %>% na.omit
     predictor_variables = append(predictor_variables, "DY.Adjusted")
     predictor_variables = append(predictor_variables, "DY.Volume")
+  }
+  if(add_msci){
+    data = cbind(data, getSymbols('XWD.TO',src='yahoo', from = as.Date(init_date)-hist, 
+                                  to = as.Date(init_date)+1, auto.assign=FALSE) %>% na.omit) %>% na.omit
+    predictor_variables = append(predictor_variables, "XWD.TO.Adjusted")
+    predictor_variables = append(predictor_variables, "XWD.TO.Volume")
+  }
+  if(add_ucits){
+    data = cbind(data, getSymbols('EXS1.DE',src='yahoo', from = as.Date(init_date)-hist, 
+                                  to = as.Date(init_date)+1, auto.assign=FALSE) %>% na.omit) %>% na.omit
+    predictor_variables = append(predictor_variables, "EXS1.DE.Adjusted")
+    predictor_variables = append(predictor_variables, "EXS1.DE.Volume")
+  }
+  if(add_us_futures){
+    data = cbind(data, getSymbols('YM=F',src='yahoo', from = as.Date(init_date)-hist, 
+                                  to = as.Date(init_date)+1, auto.assign=FALSE) %>% na.omit) %>% na.omit
+    predictor_variables = append(predictor_variables, "YM.F.Adjusted")
+    predictor_variables = append(predictor_variables, "YM.F.Volume")
   }
   data$RSI = RSI(data$GDAXI.Adjusted)
   data$Stoch_Oscill = stoch(data[,c("GDAXI.High","GDAXI.Low","GDAXI.Close")])
