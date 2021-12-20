@@ -2367,29 +2367,88 @@ source('src/model_dax.R')
 init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
                             '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
 
+# QRF Base
 qrf_scores_per_horizon = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE)
 qrf_scores_per_horizon
 
+# QRF including DAX Futures
 qrf_futures_scores_per_horizon = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE, add_futures=TRUE)
 qrf_futures_scores_per_horizon
 
+# QuantGARCH
 quantgarch_scores_per_horizon = evaluate_model_dax(dax_quantgarch, init_dates=init_dates, per_horizon=TRUE)
 quantgarch_scores_per_horizon
 
+# GARCH using three history_sizes
 garch_scores_per_horizon = evaluate_model_dax(dax_ugarch_combined, init_dates=init_dates, per_horizon=TRUE)
 garch_scores_per_horizon
 
+# Quantreg
 quantreg_scores_per_horizon = evaluate_model_dax(dax_quantreg, init_dates=init_dates, per_horizon=TRUE, quantreg=TRUE)
 quantreg_scores_per_horizon
 
+# Baseline
 baseline_scores_per_horizon = evaluate_model_dax(dax_baseline, init_dates=init_dates, per_horizon=TRUE)
 baseline_scores_per_horizon
 
+# QRF including DAX Futures and MSCI World (ETF)
+qrf_futures_msci_scores_per_horizon = evaluate_model_dax(dax_qrf, init_dates=init_dates, 
+                                                         per_horizon=TRUE, add_futures=TRUE, add_msci=TRUE)
+qrf_futures_msci_scores_per_horizon
+
+# QRF including DAX Futures and UCITS (DAX ETF)
+qrf_futures_ucits_scores_per_horizon = evaluate_model_dax(dax_qrf, init_dates=init_dates, 
+                                                          per_horizon=TRUE, add_futures=TRUE, add_ucits=TRUE)
+qrf_futures_ucits_scores_per_horizon
+
+# QRF including DAX Futures and Dow Jones Futures
+qrf_futures_usfutures_scores_per_horizon = evaluate_model_dax(dax_qrf, init_dates=init_dates, 
+                                                          per_horizon=TRUE, add_futures=TRUE, add_us_futures=TRUE)
+qrf_futures_usfutures_scores_per_horizon
+
+# QRF and GARCH mixture
+qrfgarch_scores_per_horizon = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates, per_horizon=TRUE, add_futures=TRUE)
+qrfgarch_scores_per_horizon
+
+# Aggregate in table
 model_scores = cbind(qrf_scores_per_horizon, qrf_futures_scores_per_horizon, quantgarch_scores_per_horizon, 
-                     garch_scores_per_horizon, quantreg_scores_per_horizon, baseline_scores_per_horizon)
+                     garch_scores_per_horizon, quantreg_scores_per_horizon, baseline_scores_per_horizon, 
+                     qrf_futures_msci_scores_per_horizon, qrf_futures_ucits_scores_per_horizon, 
+                     qrf_futures_usfutures_scores_per_horizon)
+colnames(model_scores) = c("QRF Base", "QRF including DAX Futures", "QuantGARCH", "GARCH three history_sizes", "Quantile Regression",
+                           "Baseline", "QRF including DAX Futures and MSCI World", "QRF including DAX Futures and UCITS", 
+                           "QRF including DAX Futures and Dow Jones Futures", "QRFGarch")
 model_scores
 
+# So: QRFGarch seems to be slightly better than QuantGARCH. Next section: Optimal weighting?
 
-#load('graphics and tables for elaboration/DAX/quantgarch_hyperparam_scores.RData')
-#min(hyperparam_scores)
-save(model_scores, file='graphics and tables for elaboration/DAX/week9_modelscores.RData')
+
+# WEEK 9: Optimal weights QRFGARCH ----------------------------------------
+
+
+source('src/model_dax.R')
+init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
+               '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
+
+scores_weights = matrix(NA, nrow=6, ncol=11)
+rownames(scores_weights) = c('Overall','1 day','2 days','3 days', '6 days', '7 days')
+weights_garch = c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+colnames(scores_weights) = weights_garch
+for(weight_num in 1:11){
+  print(paste0('Iteration: ', weight_num, ' of 11'))
+  weight_garch = weights_garch[weight_num]
+  scores_runs = matrix(NA, nrow=6, ncol=5)
+  for(run in 1:5){
+    print(paste0('Run: ', run, ' of 5'))
+    scores_runs[,run] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates,
+                                           per_horizon=TRUE, add_futures=TRUE, weight_garch=weight_garch)
+    print(paste0(((weight_num-1)*5+run)/55*100, "% done"))
+  }
+  scores_weights[,weight_num] = apply(scores_runs, 1, mean, na.rm=TRUE)
+}
+scores_weights
+
+# So: Weighting GARCH with 0.9 and QRF with 0.1 yields the best results!
+
+#save(model_scores, scores_weights, file='graphics and tables for elaboration/DAX/week9_modelscores.RData')
+#load('graphics and tables for elaboration/DAX/week9_modelscores.RData')
