@@ -127,7 +127,7 @@ dax_ugarch_combined = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.7
 
 
 dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(6,6), 
-                          history_size = 1400, solver='solnp', rolling_window=800, weight_garch=0.5){
+                          history_size = 1200, solver='solnp', rolling_window=300, weight_garch=0.5){
   #' Arguments as used in subfunctions
   
   fcst_garch = dax_ugarch(init_date = init_date, quantile_levels = quantile_levels, 
