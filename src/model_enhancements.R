@@ -1690,60 +1690,66 @@ save(scores_dax_4weeks, scores_dax_lastweek, scores_dax_first3weeks, file = "eva
 # WEEK 6: QuantGarch Hyperparametertuning ---------------------------------
 
 
+source("src/model_dax.R")
 init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
                '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
 #init_dates = c('2021-11-03')
-grid = c(150, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500)
-#grid = c(150,900)
-hyperparam_scores = matrix(NA, nrow = length(grid), ncol = length(grid))
-rownames(hyperparam_scores) = paste0('garch',grid)
-colnames(hyperparam_scores) = paste0('quant',grid)
+grid_garch = c(150, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500)
+grid_qr = c(150, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300)#, 1400, 1500)
+#grid = c(150, 900)
+hyperparam_scores = matrix(NA, nrow = length(grid_qr), ncol = length(grid_garch))
+rownames(hyperparam_scores) = paste0('garch',grid_qr)
+colnames(hyperparam_scores) = paste0('quant',grid_garch)
+#hyperparam_scores
 # Take GARCH order of 6 as taken
 # Optimize over history sizes for garch and quantreg
-for (garch_num in 1:length(grid)){
-  garchsize = grid[garch_num]
-  for (quant_num in 1:length(grid)){
-    quantsize = grid[quant_num]
+for (garch_num in 1:length(grid_garch)){
+  garchsize = grid_garch[garch_num]
+  for (quant_num in 1:length(grid_qr)){
+    quantsize = grid_qr[quant_num]
     hyperparam_scores[garch_num, quant_num] = evaluate_model_dax(dax_quantgarch, init_dates = init_dates, history_size = garchsize, 
                                                                  rolling_window = quantsize)
-    print(paste0((100*((garch_num-1)*length(grid)+quant_num) )/(length(grid)*length(grid)),' % done'))
+    print(paste0((100*((garch_num-1)*length(grid_garch)+quant_num) )/(length(grid_qr)*length(grid_garch)),' % done'))
   }
 }
 hyperparam_scores
 min(hyperparam_scores)
 
-x = paste0(grid,'') # if taken as numerical values plot gets ugly, so trick the system by making it strings
-y = paste0(grid,'')
+x = paste0(grid_garch,'') # if taken as numerical values plot gets ugly, so trick the system by making it strings
+y = paste0(grid_qr,'')
 df_grid = expand.grid(X=x,Y=y)
 df_grid
 
 scores = hyperparam_scores # rename for plot
+rownames(scores) = paste0(grid_garch,'')
+colnames(scores) = paste0(grid_qr,'')
 ggplot(df_grid, aes(X,Y, fill=scores)) + geom_tile() + scale_fill_gradient(low="black", high="bisque") +
   labs(title = 'scores hyperparameter grid search') + xlab('rolling window GARCH(6,6)') + ylab('rolling window quantile regression')
 
-x_zoom = paste0(grid[13:15],'')
+x_zoom = paste0(grid_garch[c(5:9,11:15)],'')
 df_grid_zoom = expand.grid(X=x_zoom,Y=y)
 
-scores = hyperparam_scores[13:15,]
+scores = hyperparam_scores[c(5:9,11:15),]
 ggplot(df_grid_zoom, aes(X,Y, fill=scores)) + geom_tile() + scale_fill_gradient(low="black", high="bisque")+
-  labs(title = 'scores hyperparameter grid search (zoomed in)') + xlab('rolling window GARCH(6,6)') +
+  labs(title = 'scores hyperparameter grid search (zoomed in)') + xlab('rolling window GARCH(6,6)') + 
   ylab('rolling window quantile regression')
 
-# Comparison:
-init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15')
-scores_compare = matrix(NA, nrow=4, ncol=1)
-rownames(scores_compare) = c('hypertuned quantgarch model', 'base garch', 'garch mixture', 'base quantreg')
-scores_compare[1] = min(hyperparam_scores)
-scores_compare[2] = evaluate_model_dax(dax_ugarch, init_dates = init_dates, garchorder=c(6,6), history_size=1400)
-scores_compare[3] = evaluate_model_dax(dax_ugarch_combined, init_dates = init_dates, garchorder=c(6,6), history_sizes=c(243,800,1030))
-scores_compare[4] = evaluate_model_dax(dax_quantreg, quantreg=TRUE, init_dates = init_dates, rolling_window = 800)
-scores_compare
+# Comparison: NOT ON THE SAME TEST DATA! SHOULDN'T DO THAT! SEE WEEK 9 MODEL SCORES!
+#init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15')
+#scores_compare = matrix(NA, nrow=4, ncol=1)
+#rownames(scores_compare) = c('hypertuned quantgarch model', 'base garch', 'garch mixture', 'base quantreg')
+#scores_compare[1] = min(hyperparam_scores)
+#scores_compare[2] = evaluate_model_dax(dax_ugarch, init_dates = init_dates, garchorder=c(6,6), history_size=1400)
+#scores_compare[3] = evaluate_model_dax(dax_ugarch_combined, init_dates = init_dates, garchorder=c(6,6), history_sizes=c(243,800,1030))
+#scores_compare[4] = evaluate_model_dax(dax_quantreg, quantreg=TRUE, init_dates = init_dates, rolling_window = 800)
+#scores_compare
 
 # Compare simple GARCH and quantgarch for last week 
-evaluate_model_dax(dax_ugarch, init_dates = c('2021-11-17'), garchorder=c(6,6), history_size=800)
-evaluate_model_dax(dax_quantgarch, init_dates = c('2021-11-17'), history_size = 800, 
-                   rolling_window = 800)
-save(hyperparam_scores, scores_compare, file = "hyperparam_scores.RData")
+#evaluate_model_dax(dax_ugarch, init_dates = c('2021-11-17'), garchorder=c(6,6), history_size=800)
+#evaluate_model_dax(dax_quantgarch, init_dates = c('2021-11-17'), history_size = 800, 
+#                   rolling_window = 800)
+
+save(hyperparam_scores, hyperparam_scores_old, file = "graphics and tables for elaboration/DAX/gridsearch_quantgarch_scores.RData")
 
 
 # WEEK 6: Test Support Vector Regression ----------------------------------
@@ -2451,4 +2457,4 @@ scores_weights
 # So: Weighting GARCH with 0.9 and QRF with 0.1 yields the best results!
 
 #save(model_scores, scores_weights, file='graphics and tables for elaboration/DAX/week9_modelscores.RData')
-#load('graphics and tables for elaboration/DAX/week9_modelscores.RData')
+#load('../graphics and tables for elaboration/DAX/week9_modelscores.RData')
