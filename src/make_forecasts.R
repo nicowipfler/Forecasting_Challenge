@@ -50,18 +50,13 @@ fcst_dax_quantgarch = dax_quantgarch(date)
 fcst_dax_quantgarch
 
 ## QRF + GARCH
-fcst_dax_qrf_model = 'GARCH + QRF'
-fcst_dax_qrf = dax_qrf(date, add_futures=TRUE)
-fcst_dax_qrf
-
-## QRF + GARCH
 fcst_dax_qrfgarch_model = 'GARCH + QRF'
 fcst_dax_qrfgarch = dax_qrfgarch(date, add_futures=TRUE, weight_garch=0.9)
 fcst_dax_qrfgarch
 
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
-dax_model_name = fcst_dax_quantgarch_model
-fcst_dax = fcst_dax_quantgarch
+dax_model_name = fcst_dax_qrfgarch_model
+fcst_dax = fcst_dax_qrfgarch
 
 # Visual Check
 plot_forecasts_dax(date, fcst_dax, history_size=200, ylim = c(-8, 8),
