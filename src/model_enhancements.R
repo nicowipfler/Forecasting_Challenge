@@ -2436,25 +2436,26 @@ source('src/model_dax.R')
 init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
                '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
 
-scores_weights = matrix(NA, nrow=6, ncol=11)
-rownames(scores_weights) = c('Overall','1 day','2 days','3 days', '6 days', '7 days')
+scores_weights_1200 = matrix(NA, nrow=6, ncol=11)
+rownames(scores_weights_1200) = c('Overall','1 day','2 days','3 days', '6 days', '7 days')
 weights_garch = c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
-colnames(scores_weights) = weights_garch
+colnames(scores_weights_1200) = weights_garch
 for(weight_num in 1:11){
   print(paste0('Iteration: ', weight_num, ' of 11'))
   weight_garch = weights_garch[weight_num]
   scores_runs = matrix(NA, nrow=6, ncol=5)
   for(run in 1:5){
     print(paste0('Run: ', run, ' of 5'))
-    scores_runs[,run] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates,
+    scores_runs[,run] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates, history_size=1200,
                                            per_horizon=TRUE, add_futures=TRUE, weight_garch=weight_garch)
     print(paste0(((weight_num-1)*5+run)/55*100, "% done"))
   }
-  scores_weights[,weight_num] = apply(scores_runs, 1, mean, na.rm=TRUE)
+  scores_weights_1200[,weight_num] = apply(scores_runs, 1, mean, na.rm=TRUE)
 }
+scores_weights_1200
 scores_weights
 
 # So: Weighting GARCH with 0.9 and QRF with 0.1 yields the best results!
 
-#save(model_scores, scores_weights, file='graphics and tables for elaboration/DAX/week9_modelscores.RData')
-#load('../graphics and tables for elaboration/DAX/week9_modelscores.RData')
+save(model_scores, scores_weights, scores_weights_1200, file='graphics and tables for elaboration/DAX/week9_modelscores.RData')
+#load('graphics and tables for elaboration/DAX/week9_modelscores.RData')
