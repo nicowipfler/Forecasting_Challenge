@@ -38,37 +38,60 @@ approx_crps = function(quantile_levels, fc, obs, per_horizon=FALSE){
 
 # Functions for model evaluation based on CRPS approx. via mean of quantile scores
 evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
-                                  init_dates,show_vals=FALSE,...){
+                                  init_dates, show_vals=FALSE, per_horizon=FALSE,...){
   #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
   #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' show_vals: Boolean, wether to show predictions and observations [CURRENTLY ONLY AVAILABLE FOR per_horizon=FALSE]
+  #' per_horizon: Boolean, wether scores should be obtained per horizon or overall
   
-  # Preparations
-  scores_dates = matrix(nrow=length(init_dates), ncol=1)
-  # Iterate over init_dates, for which we have all the data
-  for (i in 1:length(init_dates)){
-    # Prep
-    init_date = init_dates[i]
-    # Get observations at each init_date that we have all information for (as of now, just two dates)
-    observations = get_obs(variable,init_date)
-    print(init_date)
-    # Get Forecasts of the given model for given init_date
-    forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
-    # Compare to obs: Compute Quantile Scores / Approx- CRPS
-    scores_dates[i] = approx_crps(quantile_levels, forecasts, observations)
-    if(show_vals){
-      for(h_num in 1:dim(forecasts)[1]){
-        print(paste0('Horizon number ',h_num,':'))
-        print(paste0('Observation: ',observations[h_num]))
-        for(q_num in 1:dim(forecasts)[1]){
-          print(paste0('Predicted quantile number ', q_num, ':', forecasts[h_num,q_num]))
+  if(per_horizon==FALSE){
+    # Preparations
+    scores_dates = matrix(nrow=length(init_dates), ncol=1)
+    # Iterate over init_dates, for which we have all the data
+    for (i in 1:length(init_dates)){
+      # Prep
+      init_date = init_dates[i]
+      # Get observations on forecast times for init_date
+      observations = get_obs(variable,init_date)
+      print(init_date)
+      # Get Forecasts of the given model for given init_date
+      forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
+      # Compare to obs: Compute Quantile Scores / Approx- CRPS
+      scores_dates[i] = approx_crps(quantile_levels, forecasts, observations)
+      if(show_vals){
+        for(h_num in 1:dim(forecasts)[1]){
+          print(paste0('Horizon number ',h_num,':'))
+          print(paste0('Observation: ',observations[h_num]))
+          for(q_num in 1:dim(forecasts)[1]){
+            print(paste0('Predicted quantile number ', q_num, ':', forecasts[h_num,q_num]))
+          }
         }
       }
     }
+    final_score = mean(scores_dates)
+    return(final_score)
+    
+  } else if(per_horizon==TRUE){
+    # Preparations
+    scores_dates = matrix(NA, nrow=length(init_dates), ncol=6)
+    # Iterate over init_dates, for which we have all the data
+    for (i in 1:length(init_dates)){
+      # Prep
+      init_date = init_dates[i]
+      # Get observations on forecast times for init_date
+      observations = get_obs(variable,init_date)
+      print(init_date)
+      # Get Forecasts of the given model for given init_date
+      forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
+      # Compare to obs: Compute Quantile Scores / Approx- CRPS
+      scores_dates[i,] = approx_crps(quantile_levels, forecasts, observations, per_horizon=TRUE)
+    }
+    final_scores = apply(scores_dates, 2, mean, na.rm=TRUE)
+    names(final_scores)=c('Overall','1 day','2 days','3 days', '6 days', '7 days')
+    return(final_scores)
   }
-  final_score = mean(scores_dates)
-  return(final_score)
 }
 
 evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9), quantreg=FALSE, 
@@ -78,6 +101,7 @@ evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' quantreg: Boolean indicating wether quantreg is used, bc values have to be transposed then
   #' init_dates: list of strings containing the dates on which the model should be evaluated
+  #' per_horizon: Boolean, wether scores should be obtained per horizon or overall
   
   if(per_horizon==FALSE){
     # Preparations
@@ -105,6 +129,7 @@ evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0
     }
     final_score = mean(scores_dates, na.rm=TRUE)
     return(final_score)
+    
   } else if (per_horizon==TRUE) {
     # Preparations
     scores_dates = matrix(NA, nrow=length(init_dates), ncol=6)
