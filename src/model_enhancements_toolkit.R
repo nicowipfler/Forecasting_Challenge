@@ -89,7 +89,7 @@ evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,
       scores_dates[i,] = approx_crps(quantile_levels, forecasts, observations, per_horizon=TRUE)
     }
     final_scores = apply(scores_dates, 2, mean, na.rm=TRUE)
-    names(final_scores)=c('Overall','1 day','2 days','3 days', '6 days', '7 days')
+    names(final_scores) = c('Overall','36h','48h','60h', '72h', '84h')
     return(final_scores)
   }
 }

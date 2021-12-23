@@ -2459,3 +2459,86 @@ scores_weights
 
 save(model_scores, scores_weights, scores_weights_1200, file='graphics and tables for elaboration/DAX/week9_modelscores.RData')
 #load('graphics and tables for elaboration/DAX/week9_modelscores.RData')
+
+
+# WEEK 10: Score all weather models ---------------------------------------
+
+
+# WIND
+source('src/model_wind.R')
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15')
+
+# Baselines
+wind_scores_baseline = evaluate_model_weather(wind_baseline, 'wind', init_dates=init_dates, per_horizon=TRUE)
+wind_scores_baseline
+
+# EMOS TN
+wind_scores_emos_tn = evaluate_model_weather(wind_emos_tn, 'wind', init_dates=init_dates, per_horizon=TRUE)
+wind_scores_emos_tn
+
+# EMOS TL
+wind_scores_emos_tl = evaluate_model_weather(wind_emos_tl, 'wind', init_dates=init_dates, per_horizon=TRUE)
+wind_scores_emos_tl
+
+# EMOS TL Multivariate
+wind_scores_emos_tl_multi = evaluate_model_weather(wind_emos_tl_multi, 'wind', init_dates=init_dates, per_horizon=TRUE)
+wind_scores_emos_tl_multi
+
+# EMOS TL Multivariate + Boosting
+wind_scores_emos_tl_multi_boosting = evaluate_model_weather(wind_emos_tl_multi_boosting, 'wind', 
+                                                            init_dates=init_dates, per_horizon=TRUE)
+wind_scores_emos_tl_multi_boosting
+
+
+# QRF
+wind_scores_qrf = evaluate_model_weather(wind_qrf, 'wind', init_dates=init_dates, per_horizon=TRUE)
+wind_scores_qrf
+
+# QRF + CLCT
+wind_scores_qrf_clct = evaluate_model_weather(wind_qrf, 'wind', init_dates=init_dates, per_horizon=TRUE, addclct=TRUE)
+wind_scores_qrf_clct
+
+wind_model_scores = cbind(wind_scores_baseline, wind_scores_emos_tn, wind_scores_emos_tl, 
+                          wind_scores_emos_tl_multi, wind_scores_emos_tl_multi_boosting, wind_scores_qrf, 
+                          wind_scores_qrf_clct)
+colnames(wind_model_scores) = c("Baseline", "EMOS TN", "EMOS TL", "EMOS TL Multi", "EMOS TL Multi Boosting", 
+                                "QRF", "QRF + CLCT")
+wind_model_scores
+
+# TEMP
+source('src/model_temp.R')
+
+# Baselines
+temp_scores_baseline = evaluate_model_weather(temp_baseline, 'air_temperature', init_dates=init_dates, per_horizon=TRUE)
+temp_scores_baseline
+
+# EMOS
+temp_scores_emos = evaluate_model_weather(temp_emos, 'air_temperature', init_dates=init_dates, per_horizon=TRUE)
+temp_scores_emos
+
+# EMOS Multivariate
+temp_scores_emos_multi = evaluate_model_weather(temp_emos_multi, 'air_temperature', init_dates=init_dates, per_horizon=TRUE)
+temp_scores_emos_multi
+
+# EMOS Multivariate + Boosting
+temp_scores_emos_multi_boosting = evaluate_model_weather(temp_emos_multi_boosting, 'air_temperature', 
+                                                            init_dates=init_dates, per_horizon=TRUE)
+temp_scores_emos_multi_boosting
+
+# EMOS Multivariate + Boosting MIXTURE
+temp_scores_emos_multi_boosting_mix = evaluate_model_weather(temp_emos_multi_boosting_mixture, 'air_temperature', 
+                                              init_dates=init_dates, per_horizon=TRUE)
+temp_scores_emos_multi_boosting_mix
+
+# QRF
+temp_scores_qrf = evaluate_model_weather(temp_qrf, 'air_temperature', init_dates=init_dates, per_horizon=TRUE)
+temp_scores_qrf
+
+temp_model_scores = cbind(temp_scores_baseline, temp_scores_emos, temp_scores_emos_multi, 
+                          temp_scores_emos_multi_boosting, temp_scores_emos_multi_boosting_mix, temp_scores_qrf)
+colnames(temp_model_scores) = c("Baseline", "EMOS", "EMOS Multi", "EMOS Multi Boosting", 
+                                "EMOS Multi Boost Mix", "QRF")
+temp_model_scores
+
+save(temp_model_scores, wind_model_scores, file="graphics and tables for elaboration/weather/week10_modelscores.RData")
+#load("graphics and tables for elaboration/weather/week10_modelscores.RData")
