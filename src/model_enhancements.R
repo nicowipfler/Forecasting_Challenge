@@ -2542,3 +2542,119 @@ temp_model_scores
 
 save(temp_model_scores, wind_model_scores, file="graphics and tables for elaboration/weather/week10_modelscores.RData")
 #load("graphics and tables for elaboration/weather/week10_modelscores.RData")
+
+
+# WEEK 10: Test Weather QRF with less predictors --------------------------
+
+
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15')
+#load("graphics and tables for elaboration/weather/week10_modelscores.RData")
+
+qrf_feature_eng_train_TEST = function(df, lt){
+  #' Function that makes feature engineering for weather FALSEile regression forests training, returns ensemble statistics used for qrf
+  #' It gets summary statistics for target variable and adds simple summary statistics for additional regressors, if wanted
+  #' df: data frame containing the raw training data
+  #' lt: lead time we are currently training
+  
+  # First do summary statistics for target variable
+  df_lt = subset(df, fcst_hour == lt)
+  df_lt$ens_sd = sqrt(df_lt$ens_var)
+  df_lt$ens_med = apply(df_lt[7:46], 1, median, na.rm=T)
+  #df_lt$dez01 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.1)
+  #df_lt$dez09 = apply(df_lt[7:46], 1, quantile, na.rm=T, probs= 0.9)
+  #df_lt$iqr = apply(df_lt[7:46], 1, IQR, na.rm=T)
+  #df_lt$skew = apply(df_lt[7:46], 1, skewness, na.rm=T)
+  #df_lt$kurt = apply(df_lt[7:46], 1, kurtosis, na.rm=T)
+  #df_lt$mon = month(df_lt$obs_tm)
+  df_working = select(df_lt, obs_tm, ens_mean, ens_med, ens_sd, obs)#, dez01, dez09, iqr, skew, kurt, mon)
+  # now add summary statistics for additional variables that should be included
+  # Omit obs_tm, just needed for matching the rows
+  df_pred = df_working[,-1]
+  return(df_pred)
+}
+
+qrf_feature_eng_predict_TEST = function(df, lt, init_date){
+  #' Function that makes feature engineering for weather quantile regression forests predictions.
+  #' df: data frame containing the raw training data
+  #' lt: lead time we are currently training
+  #' init_date: date on which the prediction is to be made
+  
+  # First do summary statistics for target variable
+  df_lt = subset(df, fcst_hour == lt)
+  df_lt$ens_mean = apply(df_lt[3:42], 1, mean, na.rm=T)
+  df_lt$ens_sd = apply(df_lt[3:42], 1, sd, na.rm=T)
+  df_lt$ens_med = apply(df_lt[3:42], 1, median, na.rm=T)
+  #df_lt$dez01 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.1)
+  #df_lt$dez09 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.9)
+  #df_lt$iqr = apply(df_lt[3:42], 1, IQR, na.rm=T)
+  #df_lt$skew = apply(df_lt[3:42], 1, skewness, na.rm=T)
+  #df_lt$kurt = apply(df_lt[3:42], 1, kurtosis, na.rm=T)
+  #df_lt$mon = month(as.Date(init_date)+floor(lt/24))
+  df_working = select(df_lt, ens_mean, ens_med, ens_sd)#, dez01, dez09, iqr, skew, kurt, mon)
+  return(df_working)
+}
+
+temp_qrf_TEST = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
+  #' Function that predicts temp based on a quantile regression forest
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  #' ntree: number of trees in random forest (see randomForest Docu)
+  #' nodesize: minimum size of terminal nodes (see randomForest Docu)
+  
+  df = get_hist_temp_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train_TEST(df=df, lt=lead_time)
+    df_training_target = df_training[,4]
+    df_training_predictors = df_training[,-4]
+    # Quantile Regression Forest
+    qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    # Predict
+    df_new = get_current_temp_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict_TEST(df_new, lead_time, init_date)
+    fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
+    i = i + 1
+  }
+  return(fcst)
+}
+
+wind_qrf_TEST = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5){
+  #' Function that predicts wind based on a quantile regression forest
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  #' ntree: number of trees in random forest (see randomForest Docu)
+  #' nodesize: minimum size of terminal nodes (see randomForest Docu)
+  
+  df = get_hist_wind_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train_TEST(df=df, lt=lead_time)
+    df_training_target = df_training[,4]
+    df_training_predictors = df_training[,-4]
+    # Quantile Regression Forest
+    qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
+    # Predict
+    df_new = get_current_wind_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict_TEST(df_new, lead_time, init_date)
+    fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
+    i = i + 1
+  }
+  return(fcst)
+}
+
+
+temp_score_qrf_tiny = evaluate_model_weather(temp_qrf_TEST, 'air_temperature', init_dates=init_dates, per_horizon=TRUE)
+temp_score_qrf_tiny
+
+temp_model_scores
+
+wind_score_qrf_tiny = evaluate_model_weather(wind_qrf_TEST, 'wind', init_dates=init_dates, per_horizon=TRUE)
+wind_score_qrf_tiny
+
+wind_model_scores
+
+save(temp_score_qrf_tiny, wind_score_qrf_tiny, file="graphics and tables for elaboration/weather/week10_qrf_tiny.RData")
