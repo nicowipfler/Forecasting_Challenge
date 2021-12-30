@@ -2658,3 +2658,92 @@ wind_score_qrf_tiny
 wind_model_scores
 
 save(temp_score_qrf_tiny, wind_score_qrf_tiny, file="graphics and tables for elaboration/weather/week10_qrf_tiny.RData")
+
+
+# WEEK 10: Explore CatBoost -----------------------------------------------
+
+
+# Check if 64 bit version is installed (necessary for CatBoost)
+Sys.getenv("R_ARCH")
+
+#install.packages('devtools')
+#devtools::install_github('catboost/catboost', subdir = 'catboost/R-package')
+library(catboost)
+load("graphics and tables for elaboration/weather/week10_modelscores.RData")
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15')
+
+wind_catboost = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE){
+  #' Function that predicts wind based on decision tree boosting
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  
+  df = get_hist_wind_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    df_training_target = df_training[,10]
+    df_training_predictors = df_training[,-10]
+    # Prepare Training
+    pool = catboost.load_pool(df_training_predictors, label = df_training_target)
+    # Prepare Predicting
+    df_new = get_current_wind_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    pool_pred = catboost.load_pool(df_new_predictors)
+    j = 1
+    # Has to be modeled per quantile
+    for (quantile_level in quantile_levels){
+      fit_params = list(iterations = 100, loss_function=paste0('Quantile:alpha=',quantile_level))
+      model = catboost.train(pool, params = fit_params)
+      fcst[i,j] = catboost.predict(model, pool = pool_pred, prediction_type = 'RawFormulaVal')
+      j = j + 1
+    }
+    i = i + 1
+  }
+  return(fcst)
+}
+
+catboost_scores_wind  = evaluate_model_weather(wind_catboost, 'wind', init_dates=init_dates, per_horizon=TRUE)
+
+catboost_scores_wind 
+wind_model_scores
+
+temp_catboost = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE){
+  #' Function that predicts wind based on decision tree boosting
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  
+  df = get_hist_temp_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    df_training_target = df_training[,10]
+    df_training_predictors = df_training[,-10]
+    # Prepare Training
+    pool = catboost.load_pool(df_training_predictors, label = df_training_target)
+    # Prepare Predicting
+    df_new = get_current_temp_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    pool_pred = catboost.load_pool(df_new_predictors)
+    j = 1
+    # Has to be modeled per quantile
+    for (quantile_level in quantile_levels){
+      fit_params = list(iterations = 100, loss_function=paste0('Quantile:alpha=',quantile_level))
+      model = catboost.train(pool, params = fit_params)
+      fcst[i,j] = catboost.predict(model, pool = pool_pred, prediction_type = 'RawFormulaVal')
+      j = j + 1
+    }
+    i = i + 1
+  }
+  return(fcst)
+}
+
+catboost_scores_temp  = evaluate_model_weather(temp_catboost, 'air_temperature', init_dates=init_dates, per_horizon=TRUE)
+
+catboost_scores_temp
+temp_model_scores
+
+save(catboost_scores_temp, catboost_scores_wind, file='graphics and tables for elaboration/catboost_scores.RData')
