@@ -2,7 +2,7 @@
 
 
 dax_baseline = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
-  data = get_dax_data_directly(init_date)
+  data = get_dax_data_directly(init_date, hist_size=1000)
   forecasts = matrix(NA, nrow=5, ncol=length(quantile_levels))
   for(horizon in 1:5){
     forecasts[horizon,] = quantile(data[,paste0('ret',horizon)], quantile_levels, na.rm=TRUE)

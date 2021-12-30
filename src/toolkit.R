@@ -372,11 +372,11 @@ get_dax_data = function(init_date){
   return(dat)
 }
 
-get_dax_data_directly = function(init_date){
+get_dax_data_directly = function(init_date, hist_size=2000){
   #' Get the DAX data of the corresponding date loaded directly from yahoo finance
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   
-  dat = data.frame(getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-2000, to = as.Date(init_date)+1, auto.assign=FALSE)) %>%
+  dat = data.frame(getSymbols('^GDAXI',src='yahoo', from = as.Date(init_date)-hist_size, to = as.Date(init_date)+1, auto.assign=FALSE)) %>%
     mutate(ret1 = compute_return(GDAXI.Adjusted, h = 1),
            ret2 = compute_return(GDAXI.Adjusted, h = 2),
            ret3 = compute_return(GDAXI.Adjusted, h = 3),
