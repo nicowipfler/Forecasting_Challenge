@@ -2747,3 +2747,60 @@ catboost_scores_temp
 temp_model_scores
 
 save(catboost_scores_temp, catboost_scores_wind, file='graphics and tables for elaboration/catboost_scores.RData')
+
+
+# Explore GBM -------------------------------------------------------------
+
+
+# CatBoost should be optimal for categorical gradient boosting, so lets try gbm
+#install.packages('gbm')
+library(gbm)
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15')
+
+wind_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE){
+  #' Function that predicts wind based on decision tree boosting
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  
+  df = get_hist_wind_data() %>% na.omit
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    # Feature Engineering Predictions
+    df_new = get_current_wind_data(init_date)[,-1]
+    df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    # Has to be fit per horizon
+    for (j in 1:length(quantile_levels)){
+      print(paste0('Fitting quantile number ', j))
+      quantile = quantile_levels[j]
+      # Train
+      gbm.fit = gbm(
+        formula = obs ~ .,
+        distribution = list(name = "quantile", alpha = quantile),
+        data = df_training,
+        n.trees = 1000,
+        interaction.depth = 1,
+        shrinkage = 0.001,
+        #cv.folds = 5,
+        verbose = FALSE
+      )
+      # Predict
+      fcst[i,j] = predict.gbm(gbm.fit, df_new_predictors, n.trees=gbm.fit$n.trees)
+    }
+    i = i + 1
+  }
+  return(fcst)
+}
+
+# Test Function
+wind_gbm('2021-11-03')
+
+# Evaluate Model (out-of-the-box)
+score_gbm_ootb = evaluate_model_weather(wind_gbm, 'wind', init_dates=init_dates, per_horizon=TRUE)
+score_gbm_ootb
+
+# Compare to other models
+load("graphics and tables for elaboration/weather/week10_modelscores.RData")
+wind_model_scores
