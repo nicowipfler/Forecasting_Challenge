@@ -294,14 +294,14 @@ qrf_feature_eng_predict = function(df, lt, init_date, addmslp=FALSE, addclct=FAL
   
   # First do summary statistics for target variable
   df_lt = subset(df, fcst_hour == lt)
-  df_lt$ens_mean = apply(df_lt[3:42], 1, mean, na.rm=T)
-  df_lt$ens_sd = apply(df_lt[3:42], 1, sd, na.rm=T)
-  df_lt$ens_med = apply(df_lt[3:42], 1, median, na.rm=T)
-  df_lt$dez01 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.1)
-  df_lt$dez09 = apply(df_lt[3:42], 1, quantile, na.rm=T, probs= 0.9)
-  df_lt$iqr = apply(df_lt[3:42], 1, IQR, na.rm=T)
-  df_lt$skew = apply(df_lt[3:42], 1, skewness, na.rm=T)
-  df_lt$kurt = apply(df_lt[3:42], 1, kurtosis, na.rm=T)
+  df_lt$ens_mean = apply(df_lt[2:41], 1, mean, na.rm=T)
+  df_lt$ens_sd = apply(df_lt[2:41], 1, sd, na.rm=T)
+  df_lt$ens_med = apply(df_lt[2:41], 1, median, na.rm=T)
+  df_lt$dez01 = apply(df_lt[2:41], 1, quantile, na.rm=T, probs= 0.1)
+  df_lt$dez09 = apply(df_lt[2:41], 1, quantile, na.rm=T, probs= 0.9)
+  df_lt$iqr = apply(df_lt[2:41], 1, IQR, na.rm=T)
+  df_lt$skew = apply(df_lt[2:41], 1, skewness, na.rm=T)
+  df_lt$kurt = apply(df_lt[2:41], 1, kurtosis, na.rm=T)
   df_lt$mon = month(as.Date(init_date)+floor(lt/24))
   df_working = select(df_lt, ens_mean, ens_med, ens_sd, dez01, dez09, iqr, skew, kurt, mon)
   if (addmslp){
