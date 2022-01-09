@@ -32,7 +32,6 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), tr
   }
   else{
     t2m_data_raw = training_data
-    init_date = max(t2m_data_raw$obs_tm)
     new_fcst = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
   }
   # Prepare Output Data
@@ -95,9 +94,7 @@ temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.97
   else{
     # Get wind data
     t2m_data_raw = training_data
-    init_date = max(t2m_data_raw$obs_tm)
     new_fcst = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
-    
     # Get rad data
     data_direct_rad = get_hist_data_varname('direct_rad')
     new_fcst_rad = subset(get_hist_data_varname('direct_rad'), init_tm==as.Date(init_date))[,c(4,7:46)]
@@ -171,7 +168,6 @@ temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   else{
     # Get wind data
     t2m_data_raw = training_data
-    init_date = max(t2m_data_raw$obs_tm)
     new_fcst = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
     
     # Get rad data
@@ -250,7 +246,6 @@ temp_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntr
   }
   else{
     df = training_data %>% na.omit
-    init_date = max(df$obs_tm)
     df_new = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
   }
   fcst = matrix(nrow = 5, ncol = length(quantile_levels))

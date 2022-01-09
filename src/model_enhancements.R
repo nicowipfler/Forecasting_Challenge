@@ -2749,7 +2749,7 @@ temp_model_scores
 save(catboost_scores_temp, catboost_scores_wind, file='graphics and tables for elaboration/catboost_scores.RData')
 
 
-# Explore GBM -------------------------------------------------------------
+# WEEK 10: Explore GBM ----------------------------------------------------
 
 
 # CatBoost should be optimal for categorical gradient boosting, so lets try gbm
@@ -2826,7 +2826,7 @@ cv_scores_wind [2,] = apply(cross_validate_weather(wind_emos_tl, 'wind', kfold=1
 cv_scores_wind [3,] = apply(cross_validate_weather(wind_emos_tl_multi, 'wind', kfold=10), 2, mean)
 cv_scores_wind [4,] = apply(cross_validate_weather(wind_emos_tl_multi_boosting, 'wind', kfold=10), 2, mean)
 cv_scores_wind [5,] = apply(cross_validate_weather(wind_qrf, 'wind', kfold=10), 2, mean)
-cv_scores_wind 
+cv_scores_wind
 
 
 # Temp

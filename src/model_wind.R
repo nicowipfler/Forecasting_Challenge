@@ -35,7 +35,6 @@ wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   }
   else{
     wind_data_raw = training_data
-    init_date = max(wind_data_raw$obs_tm)
     new_fcst = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
   }
   # Prepare Output Data
@@ -103,7 +102,6 @@ wind_emos_tl = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   }
   else{
     wind_data_raw = training_data
-    init_date = max(wind_data_raw$obs_tm)
     new_fcst = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
   }
   # Prepare Output Data
@@ -167,7 +165,6 @@ wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0
     # Get rid of empty first and last column
     new_fcst[,1] = NULL
     new_fcst[,ncol(new_fcst)] = NULL
-    
     # Get historical mslp data
     data_mslp = get_hist_data_varname('mslp')
     # Get current mslp data
@@ -176,12 +173,10 @@ wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0
   else{
     # Get wind data
     wind_data_raw = training_data
-    init_date = max(wind_data_raw$obs_tm)
     new_fcst = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
-    
     # Get mslp data
     data_mslp = get_hist_data_varname('mslp')
-    new_fcst_mslp = subset(get_hist_data_varname('mslp'), init_tm==as.Date(init_date))[,c(4,7:46)]
+    new_fcst_mslp = subset(data_mslp, init_tm==as.Date(init_date))[,c(4,7:46)]
   }
   # Prepare Output Data
   fcst_wind = matrix(ncol = length(quantile_levels), nrow = 5)
@@ -249,9 +244,7 @@ wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0
   else{
     # Get wind data
     wind_data_raw = training_data
-    init_date = max(wind_data_raw$obs_tm)
     new_fcst = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
-    
     # Get mslp data
     data_mslp = get_hist_data_varname('mslp')
     new_fcst_mslp = subset(get_hist_data_varname('mslp'), init_tm==as.Date(init_date))[,c(4,7:46)]
@@ -316,7 +309,6 @@ wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntr
   }
   else{
     df = training_data %>% na.omit
-    init_date = max(df$obs_tm)
     df_new = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
   }
   fcst = matrix(nrow = 5, ncol = length(quantile_levels))

@@ -4,7 +4,9 @@ quantile_score = function(quantile, forecast, realization) {
   #' quantile: float containing quantile level, e.g. 0.95
   #' forecast: float containing forecasted value on quantile level, e.g. 0.05
   #' realization: float containing the realized value, e.g. 0.04
-
+  if(is.na(realization)){
+    return(NA_real_)
+  }
   if(forecast > realization){
     return(2*(1-quantile)*(forecast-realization))
   }
@@ -30,8 +32,8 @@ approx_crps = function(quantile_levels, fc, obs, per_horizon=FALSE){
     return(mean(scores))
   } else {
     scores_horizons = matrix(NA, nrow=6, ncol=1)
-    scores_horizons[1] = mean(scores)
-    scores_horizons[2:6] = apply(scores, 1, mean)
+    scores_horizons[1] = mean(scores, na.rm=TRUE)
+    scores_horizons[2:6] = apply(scores, 1, mean, na.rm=TRUE)
     return(scores_horizons)
   }
 }
@@ -55,7 +57,7 @@ evaluate_model_weather = function(model_func, variable, quantile_levels=c(0.1,0.
       init_date = init_dates[i]
       # Get observations on forecast times for init_date
       observations = get_obs(variable,init_date)
-      print(init_date)
+      message(init_date)
       # Get Forecasts of the given model for given init_date
       forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
       # Compare to obs: Compute Quantile Scores / Approx- CRPS
@@ -82,7 +84,7 @@ evaluate_model_weather = function(model_func, variable, quantile_levels=c(0.1,0.
       init_date = init_dates[i]
       # Get observations on forecast times for init_date
       observations = get_obs(variable,init_date)
-      print(init_date)
+      message(init_date)
       # Get Forecasts of the given model for given init_date
       forecasts = model_func(init_date=init_date, quantile_levels=quantile_levels, ...)
       # Compare to obs: Compute Quantile Scores / Approx- CRPS
@@ -110,7 +112,7 @@ evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0
     for (i in 1:length(init_dates)){
       # Prep
       init_date = init_dates[i]
-      print(init_date)
+      message(init_date)
       dax_data = get_dax_data_directly(as.Date(init_date)+7)
       observations = c(dax_data[dim(dax_data)[1]-4,'ret1'], dax_data[dim(dax_data)[1]-3,'ret2'], dax_data[dim(dax_data)[1]-2,'ret3'],
               dax_data[dim(dax_data)[1]-1,'ret4'], dax_data[dim(dax_data)[1],'ret5'])
@@ -137,7 +139,7 @@ evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0
     for (i in 1:length(init_dates)){
       # Prep
       init_date = init_dates[i]
-      print(init_date)
+      message(init_date)
       dax_data = get_dax_data_directly(as.Date(init_date)+7)
       observations = c(dax_data[dim(dax_data)[1]-4,'ret1'], dax_data[dim(dax_data)[1]-3,'ret2'], dax_data[dim(dax_data)[1]-2,'ret3'],
                        dax_data[dim(dax_data)[1]-1,'ret4'], dax_data[dim(dax_data)[1],'ret5'])
@@ -170,8 +172,10 @@ cross_validate_weather = function(model_func, variable, quantile_levels=c(0.1,0.
   # Get full historic data
   if(variable=='wind'){
     data_fct = get_hist_wind_data
+    timedelta = lubridate::days(1)
   } else {
     data_fct = get_hist_temp_data
+    timedelta = lubridate::days(6)
   }
   df_training = data_fct()
   
@@ -181,28 +185,44 @@ cross_validate_weather = function(model_func, variable, quantile_levels=c(0.1,0.
   weeks_per_fold = floor(total_weeks/kfold)
   
   # Prepare scores matrix
-  scores_folds = matrix(NA, nrow=kfold, ncol=6)
-  colnames(scores_folds) = c('Overall', '36h', '48h', '60h', '72h', '84h')
-  rownames(scores_folds) = paste0('Fold no. ',1:kfold)
+  scores_crossval = matrix(NA, nrow=kfold, ncol=6)
+  colnames(scores_crossval) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+  rownames(scores_crossval) = paste0('Fold no. ',1:kfold)
   
-  # Cross-Validate
-  start_date = range[1]
+  # Borders of the test data set in fold 1 (k):
+  start_date = range[1] + timedelta # because additional variables start one day later
   end_date = start_date + lubridate::days(7)*weeks_per_fold
+  # Cross-Validate
   for(k in 1:kfold){
-    print(paste0('Fold ', k, ' of ', kfold))
-    # Get data and forecasts
-    df_fold = subset(df_training, obs_tm >= as.Date(start_date) & obs_tm <= as.Date(end_date))
-    forecasts = model_func(init_date=end_date, quantile_levels=quantile_levels, training_data=df_fold, ...)
-    
-    # Evaluate
-    observations = get_obs_historical(variable, as.Date(end_date))
-    scores_folds[k,] = approx_crps(quantile_levels, forecasts, observations, per_horizon=TRUE)
-    
-    # Update dates for next fold
+    message(paste0('Fold ', k, ' of ', kfold))
+    # Get training data (df without fold k)
+    df_fold = subset(df_training, init_tm < as.Date(start_date) | init_tm > as.Date(end_date))
+    test_date = start_date
+    scores_fold_k = matrix(NA, nrow=weeks_per_fold, ncol=6)
+    # Evaluate for all weeks inside the test set (fold k)
+    for(week in 1:weeks_per_fold){
+      if(week==1){
+        cat(paste0('Out of ', weeks_per_fold, ' weeks: 1, '))
+      } else {
+        cat(paste0(week, ', '))
+      } 
+      if(week==weeks_per_fold){
+        cat('DONE!\n')
+      }
+      tryCatch({
+        forecasts = model_func(init_date=test_date, quantile_levels=quantile_levels, training_data=df_fold, ...)
+        observations = get_obs_historical(variable, as.Date(test_date))
+        scores_fold_k[week,] = approx_crps(quantile_levels, forecasts, observations, per_horizon=TRUE)},
+        error = function(cond){forecasts=NA}
+      )
+      test_date = test_date + lubridate::days(7)
+    }
+    scores_crossval[k,] = apply(scores_fold_k, 2, mean, na.rm=TRUE)
+    # Update borders of test data set for next fold
     start_date = end_date
     end_date = end_date + lubridate::days(7)*weeks_per_fold
   }
-  return(scores_folds)
+  return(scores_crossval)
 }
 
 # Other toolkit functions
