@@ -2804,3 +2804,49 @@ score_gbm_ootb
 # Compare to other models
 load("graphics and tables for elaboration/weather/week10_modelscores.RData")
 wind_model_scores
+
+
+# WEEK 10: Cross-Validation for weather models ----------------------------
+
+
+# Wind
+source('src/model_wind.R')
+cross_validate_weather(wind_emos_tn, 'wind', kfold=2)
+cross_validate_weather(wind_emos_tl, 'wind', kfold=2)
+cross_validate_weather(wind_emos_tl_multi, 'wind', kfold=2)
+cross_validate_weather(wind_emos_tl_multi_boosting, 'wind', kfold=2)
+cross_validate_weather(wind_qrf, 'wind', kfold=2)
+
+cv_scores_wind  = matrix(NA, nrow=5, ncol=6)
+rownames(cv_scores_wind ) = c('EMOS TN', 'EMOS TL', 'EMOS TL MSLP', 'EMOS TL MSLP Boosting', 'QRF')
+colnames(cv_scores_wind ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+
+cv_scores_wind [1,] = apply(cross_validate_weather(wind_emos_tn, 'wind', kfold=10), 2, mean)
+cv_scores_wind [2,] = apply(cross_validate_weather(wind_emos_tl, 'wind', kfold=10), 2, mean)
+cv_scores_wind [3,] = apply(cross_validate_weather(wind_emos_tl_multi, 'wind', kfold=10), 2, mean)
+cv_scores_wind [4,] = apply(cross_validate_weather(wind_emos_tl_multi_boosting, 'wind', kfold=10), 2, mean)
+cv_scores_wind [5,] = apply(cross_validate_weather(wind_qrf, 'wind', kfold=10), 2, mean)
+cv_scores_wind 
+
+
+# Temp
+source('src/model_temp.R')
+cross_validate_weather(temp_emos, 'air_temperature', kfold=2)
+cross_validate_weather(temp_emos_multi, 'air_temperature', kfold=2)
+cross_validate_weather(temp_emos_multi_boosting, 'air_temperature', kfold=2)
+cross_validate_weather(temp_emos_multi_boosting_mixture, 'air_temperature', kfold=2)
+cross_validate_weather(temp_qrf, 'air_temperature', kfold=2)
+
+cv_scores_temp = matrix(NA, nrow=5, ncol=6)
+rownames(cv_scores_temp) = c('EMOS', 'EMOS Multi', 'EMOS Multi Boosting', 'EMOS Multi Boosting Mix', 'QRF')
+colnames(cv_scores_temp) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+
+cv_scores_temp[1,] = apply(cross_validate_weather(temp_emos, 'air_temperature', kfold=10), 2, mean)
+cv_scores_temp[2,] = apply(cross_validate_weather(temp_emos_multi, 'air_temperature', kfold=10), 2, mean)
+cv_scores_temp[3,] = apply(cross_validate_weather(temp_emos_multi_boosting, 'air_temperature', kfold=10), 2, mean)
+cv_scores_temp[4,] = apply(cross_validate_weather(temp_emos_multi_boosting_mixture, 'air_temperature', kfold=10), 2, mean)
+cv_scores_temp[5,] = apply(cross_validate_weather(temp_qrf, 'air_temperature', kfold=10), 2, mean)
+cv_scores_temp
+
+save(cv_scores_temp, cv_scores_wind, file='graphics and tables for elaboration/weather/week10_cross_validation.RData')
+#load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
