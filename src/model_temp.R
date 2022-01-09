@@ -16,18 +16,25 @@ temp_baseline = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)
   return(fcst)
 }
 
-temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), training_data){
   #' Function to make forecasts of temp using EMOS with normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
-  # prepare historical data
-  t2m_data_raw = get_hist_temp_data()
-  # Get current ensemble forecasts
-  new_fcst = get_current_temp_data(init_date)
-  # Get rid of empty first and last row
-  new_fcst[,1] = NULL
-  new_fcst[,ncol(new_fcst)] = NULL
+  if(missing(training_data)){
+    # Get historical data
+    t2m_data_raw = get_hist_temp_data()
+    # Get current ensemble forecasts
+    new_fcst = get_current_temp_data(init_date)
+    # get rid of empty first and last column
+    new_fcst[,1] = NULL
+    new_fcst[,ncol(new_fcst)] = NULL
+  }
+  else{
+    t2m_data_raw = training_data
+    init_date = max(t2m_data_raw$obs_tm)
+    new_fcst = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   # Prepare Output Data
   fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
   # MODEL
@@ -63,24 +70,38 @@ temp_emos = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   return(fcst_temp)
 }
 
-temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), training_data){
   #' Function to make forecasts of temp using EMOS with normal distribution and additional regressor radiation
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
-  t2m_data_raw = get_hist_temp_data()
-  # Get historic rad data
-  data_direct_rad = get_hist_data_varname('direct_rad')
-  # Get current ensemble forecasts temp
-  new_fcst = get_current_temp_data(init_date)
-  # Get rid of empty first and last row
-  new_fcst[,1] = NULL
-  new_fcst[,ncol(new_fcst)] = NULL
-  # Get current rad data
-  new_fcst_rad = get_current_data_varname('direct_rad', init_date)
-  # at 2021-11-17 name was changed from aswdir-s to direct-rad in gitlab...
-  new_fcst_rad[,1] = NULL
-  new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  if(missing(training_data)){
+    # Get historical data
+    t2m_data_raw = get_hist_temp_data()
+    # Get current ensemble forecasts temp
+    new_fcst = get_current_temp_data(init_date)
+    # Get rid of empty first and last column
+    new_fcst[,1] = NULL
+    new_fcst[,ncol(new_fcst)] = NULL
+    
+    # Get historic rad data
+    data_direct_rad = get_hist_data_varname('direct_rad')
+    # Get current rad data
+    new_fcst_rad = get_current_data_varname('direct_rad', init_date)
+    # at 2021-11-17 name was changed from aswdir-s to direct-rad in gitlab...
+    new_fcst_rad[,1] = NULL
+    new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  }
+  else{
+    # Get wind data
+    t2m_data_raw = training_data
+    init_date = max(t2m_data_raw$obs_tm)
+    new_fcst = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+    
+    # Get rad data
+    data_direct_rad = get_hist_data_varname('direct_rad')
+    new_fcst_rad = subset(get_hist_data_varname('direct_rad'), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   # Prepare Output Data
   fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
   # MODEL
@@ -125,24 +146,38 @@ temp_emos_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.97
   return(fcst_temp)
 }
 
-temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), training_data){
   #' Function to make forecasts of temp using EMOS with normal distribution and additional regressor radiation
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
-  t2m_data_raw = get_hist_temp_data()
-  # get historic rad data
-  data_direct_rad = get_hist_data_varname('direct_rad')
-  # Get current ensemble forecasts temp
-  new_fcst = get_current_temp_data(init_date)
-  # Get rid of empty first and last row
-  new_fcst[,1] = NULL
-  new_fcst[,ncol(new_fcst)] = NULL
-  # get current rad data
-  new_fcst_rad = get_current_data_varname('direct_rad', init_date)
-  # at 2021-11-17 name was changed from aswdir-s to direct-rad in gitlab...
-  new_fcst_rad[,1] = NULL
-  new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  if(missing(training_data)){
+    # Get historical data
+    t2m_data_raw = get_hist_temp_data()
+    # Get current ensemble forecasts temp
+    new_fcst = get_current_temp_data(init_date)
+    # Get rid of empty first and last column
+    new_fcst[,1] = NULL
+    new_fcst[,ncol(new_fcst)] = NULL
+    
+    # Get historic rad data
+    data_direct_rad = get_hist_data_varname('direct_rad')
+    # Get current rad data
+    new_fcst_rad = get_current_data_varname('direct_rad', init_date)
+    # at 2021-11-17 name was changed from aswdir-s to direct-rad in gitlab...
+    new_fcst_rad[,1] = NULL
+    new_fcst_rad[,ncol(new_fcst_rad)] = NULL
+  }
+  else{
+    # Get wind data
+    t2m_data_raw = training_data
+    init_date = max(t2m_data_raw$obs_tm)
+    new_fcst = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+    
+    # Get rad data
+    data_direct_rad = get_hist_data_varname('direct_rad')
+    new_fcst_rad = subset(get_hist_data_varname('direct_rad'), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   # Prepare Output Data
   fcst_temp = matrix(ncol = length(quantile_levels), nrow = 5)
   # MODEL
@@ -188,27 +223,36 @@ temp_emos_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   return(fcst_temp)
 }
 
-temp_emos_multi_boosting_mixture = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), weights=c(0.5,0.5)){
+temp_emos_multi_boosting_mixture = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), weights=c(0.5,0.5), ...){
   #' Function to make forecasts of temp using EMOS with normal distribution and additional regressor radiation
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' weights: vector containing numeric weights (that add up to 1) for combination of models
   
-  fc_emos = temp_emos_multi(init_date, quantile_levels)
-  fc_boost = temp_emos_multi_boosting(init_date, quantile_levels)
+  fc_emos = temp_emos_multi(init_date, quantile_levels, ...)
+  fc_boost = temp_emos_multi_boosting(init_date, quantile_levels, ...)
   fc_comb = combine_forecasts(fc_emos, fc_boost, weights)
   return(fc_comb)
 }
 
 temp_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5,
-                    addmslp=FALSE, addclct=FALSE, addrad=FALSE){
+                    addmslp=FALSE, addclct=FALSE, addrad=FALSE, training_data){
   #' Function that predicts temp based on a quantile regression forest
   #' init_date: as all the time
   #' quantile_levels: as all the time
   #' ntree: number of trees in random forest (see randomForest Docu)
   #' nodesize: minimum size of terminal nodes (see randomForest Docu)
   
-  df = get_hist_temp_data() %>% na.omit
+  if(missing(training_data)){
+    # Get historical data
+    df = get_hist_temp_data() %>% na.omit
+    df_new = get_current_temp_data(init_date)[,-c(1,43)]
+  }
+  else{
+    df = training_data %>% na.omit
+    init_date = max(df$obs_tm)
+    df_new = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   fcst = matrix(nrow = 5, ncol = length(quantile_levels))
   i = 1
   for (lead_time in c(36,48,60,72,84)){
@@ -219,7 +263,6 @@ temp_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntr
     # Quantile Regression Forest
     qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
     # Predict
-    df_new = get_current_temp_data(init_date)[,-1]
     df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
     fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
     i = i + 1

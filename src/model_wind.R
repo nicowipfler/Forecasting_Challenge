@@ -17,19 +17,27 @@ wind_baseline = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)
   return(fcst)
 }
 
-wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), training_data){
   #' Function to make forecasts of temp using EMOS with truncated normal distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' mode: Integer indicating wether [1] forecasts or [2] model_parameters are to be returned
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' training_data: OPTIONAL argument used for cross-validation, provides training data directly for better control
   
-  # Get historical data
-  wind_data_raw = get_hist_wind_data()
-  # Get current ensemble forecasts
-  new_fcst = get_current_wind_data(init_date)
-  # get rid of empty first and last column
-  new_fcst[,1] = NULL
-  new_fcst[,ncol(new_fcst)] = NULL
+  if(missing(training_data)){
+    # Get historical data
+    wind_data_raw = get_hist_wind_data()
+    # Get current ensemble forecasts
+    new_fcst = get_current_wind_data(init_date)
+    # get rid of empty first and last column
+    new_fcst[,1] = NULL
+    new_fcst[,ncol(new_fcst)] = NULL
+  }
+  else{
+    wind_data_raw = training_data
+    init_date = max(wind_data_raw$obs_tm)
+    new_fcst = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   # Prepare Output Data
   fcst_wind = matrix(ncol = length(quantile_levels), nrow = 5)
   if(mode==2){
@@ -77,19 +85,27 @@ wind_emos_tn = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   }
 }
 
-wind_emos_tl = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+wind_emos_tl = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), training_data){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' mode: Integer indicating wether [1] forecasts or [2] model_parameters are to be returned
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' training_data: OPTIONAL argument used for cross-validation, provides training data directly for better control
   
-  # Get historical data
-  wind_data_raw = get_hist_wind_data()
-  # Get current ensemble forecasts
-  new_fcst = get_current_wind_data(init_date)
-  # get rid of empty first and last column
-  new_fcst[,1] = NULL
-  new_fcst[,ncol(new_fcst)] = NULL
+  if(missing(training_data)){
+    # Get historical data
+    wind_data_raw = get_hist_wind_data()
+    # Get current ensemble forecasts
+    new_fcst = get_current_wind_data(init_date)
+    # get rid of empty first and last column
+    new_fcst[,1] = NULL
+    new_fcst[,ncol(new_fcst)] = NULL
+  }
+  else{
+    wind_data_raw = training_data
+    init_date = max(wind_data_raw$obs_tm)
+    new_fcst = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   # Prepare Output Data
   fcst_wind = matrix(ncol = length(quantile_levels), nrow = 5)
   if(mode==2){
@@ -137,22 +153,36 @@ wind_emos_tl = function(init_date, mode=1, quantile_levels=c(0.025,0.25,0.5,0.75
   }
 }
 
-wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), training_data){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution and additional regressor mslp
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' training_data: OPTIONAL argument used for cross-validation, provides training data directly for better control
   
-  # Get historical data
-  wind_data_raw = get_hist_wind_data()
-  # Get historic mslp data
-  data_mslp = get_hist_data_varname('mslp')
-  # Get current ensemble forecasts
-  new_fcst = get_current_wind_data(init_date)
-  # Get rid of empty first and last column
-  new_fcst[,1] = NULL
-  new_fcst[,ncol(new_fcst)] = NULL
-  # Get current rad data
-  new_fcst_mslp = get_current_data_varname('mslp', init_date)
+  if(missing(training_data)){
+    # Get historical data
+    wind_data_raw = get_hist_wind_data()
+    # Get current ensemble forecasts
+    new_fcst = get_current_wind_data(init_date)
+    # Get rid of empty first and last column
+    new_fcst[,1] = NULL
+    new_fcst[,ncol(new_fcst)] = NULL
+    
+    # Get historical mslp data
+    data_mslp = get_hist_data_varname('mslp')
+    # Get current mslp data
+    new_fcst_mslp = get_current_data_varname('mslp', init_date)
+  }
+  else{
+    # Get wind data
+    wind_data_raw = training_data
+    init_date = max(wind_data_raw$obs_tm)
+    new_fcst = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+    
+    # Get mslp data
+    data_mslp = get_hist_data_varname('mslp')
+    new_fcst_mslp = subset(get_hist_data_varname('mslp'), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   # Prepare Output Data
   fcst_wind = matrix(ncol = length(quantile_levels), nrow = 5)
   # MODEL
@@ -164,7 +194,7 @@ wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0
     # get rad data for forecast horizon
     mslp_data = subset(data_mslp, fcst_hour == lead_time)
     mslp_data = mslp_data[!is.na(mslp_data$obs),]
-    # Merge data temp and rad
+    # Merge data temp and mslp
     merge = merge(x=wind_data, y=mslp_data, by="obs_tm")
     # evaluate model on full historic data (with corresponding lead_time)
     wind_model = crch(obs.x ~ ens_mean.y + ens_mean.x|ens_sd,
@@ -196,24 +226,36 @@ wind_emos_tl_multi = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0
   return(fcst_wind)
 }
 
-wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), training_data){
   #' Function to make forecasts of temp using EMOS with truncated logistic distribution and additional regressor mslp via BOOSTING
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' training_data: OPTIONAL argument used for cross-validation, provides training data directly for better control
   
-  # Get historical data
-  wind_data_raw = get_hist_wind_data()
-  # get historic mslp data
-  data_mslp = get_hist_data_varname('mslp')
-  # Get current ensemble forecasts
-  new_fcst = get_current_wind_data(init_date)
-  # get rid of empty first and last column
-  new_fcst[,1] = NULL
-  new_fcst[,ncol(new_fcst)] = NULL
-  # get current rad data
-  new_fcst_mslp = get_current_data_varname('mslp', init_date)
-  new_fcst_mslp[,1] = NULL
-  new_fcst_mslp[,ncol(new_fcst_mslp)] = NULL
+  if(missing(training_data)){
+    # Get historical data
+    wind_data_raw = get_hist_wind_data()
+    # Get current ensemble forecasts
+    new_fcst = get_current_wind_data(init_date)
+    # Get rid of empty first and last column
+    new_fcst[,1] = NULL
+    new_fcst[,ncol(new_fcst)] = NULL
+    
+    # Get historical mslp data
+    data_mslp = get_hist_data_varname('mslp')
+    # Get current mslp data
+    new_fcst_mslp = get_current_data_varname('mslp', init_date)
+  }
+  else{
+    # Get wind data
+    wind_data_raw = training_data
+    init_date = max(wind_data_raw$obs_tm)
+    new_fcst = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+    
+    # Get mslp data
+    data_mslp = get_hist_data_varname('mslp')
+    new_fcst_mslp = subset(get_hist_data_varname('mslp'), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   # Prepare Output Data
   fcst_wind = matrix(ncol = length(quantile_levels), nrow = 5)
   # MODEL
@@ -259,14 +301,24 @@ wind_emos_tl_multi_boosting = function(init_date, quantile_levels=c(0.025,0.25,0
 }
 
 wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntree=500, nodesize=5,
-                    addmslp=FALSE, addclct=FALSE, addrad=FALSE){
+                    addmslp=FALSE, addclct=FALSE, addrad=FALSE, training_data){
   #' Function that predicts wind based on a quantile regression forest
   #' init_date: as all the time
   #' quantile_levels: as all the time
   #' ntree: number of trees in random forest (see randomForest Docu)
   #' nodesize: minimum size of terminal nodes (see randomForest Docu)
+  #' training_data: OPTIONAL argument used for cross-validation, provides training data directly for better control
   
-  df = get_hist_wind_data() %>% na.omit
+  if(missing(training_data)){
+    # Get historical data
+    df = get_hist_wind_data() %>% na.omit
+    df_new = get_current_wind_data(init_date)[,-c(1,43)]
+  }
+  else{
+    df = training_data %>% na.omit
+    init_date = max(df$obs_tm)
+    df_new = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   fcst = matrix(nrow = 5, ncol = length(quantile_levels))
   i = 1
   for (lead_time in c(36,48,60,72,84)){
@@ -277,7 +329,6 @@ wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntr
     # Quantile Regression Forest
     qrf = quantregForest(df_training_predictors, df_training_target, nthreads = 4, ntree=ntree, nodeseize=nodesize)
     # Predict
-    df_new = get_current_wind_data(init_date)[,-1]
     df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
     fcst[i,] = predict(qrf, newdata = df_new_predictors, what = quantile_levels)
     i = i + 1
