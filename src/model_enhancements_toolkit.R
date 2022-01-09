@@ -36,10 +36,10 @@ approx_crps = function(quantile_levels, fc, obs, per_horizon=FALSE){
   }
 }
 
-# Functions for model evaluation based on CRPS approx. via mean of quantile scores
-evaluate_model_weather = function(model_func,variable,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
+# Functions for model evaluation based on CRPS approx. via mean of quantile scores on a specific test set
+evaluate_model_weather = function(model_func, variable, quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
                                   init_dates, show_vals=FALSE, per_horizon=FALSE,...){
-  #' Function, that evaluates model on historic dataset based on mean of quantile scores as approx. of CRPS
+  #' Function, that evaluates model on multiple datasets based on mean of quantile scores as approx. of CRPS
   #' model_func: Function that puts out the models forecasts, e.g. emos_temp
   #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
@@ -160,6 +160,51 @@ evaluate_model_dax = function(model_func,quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0
   }
 }
 
+# Functions for Cross-Validation
+cross_validate_weather = function(model_func, variable, quantile_levels=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9), kfold=10, ...){
+  #' Function, that evaluates model using cross-validation based on mean of quantile scores as approx. of CRPS
+  #' model_func: Function that puts out the models forecasts, e.g. emos_temp
+  #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  
+  # Get full historic data
+  if(variable=='wind'){
+    data_fct = get_hist_wind_data
+  } else {
+    data_fct = get_hist_temp_data
+  }
+  df_training = data_fct()
+  
+  # Prepare for Cross-Validation
+  range = range(df_training$init_tm)
+  total_weeks = as.numeric(floor((range[2] - range[1])/7)-1) # So that observations are available for the last fold
+  weeks_per_fold = floor(total_weeks/kfold)
+  
+  # Prepare scores matrix
+  scores_folds = matrix(NA, nrow=kfold, ncol=6)
+  colnames(scores_folds) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+  rownames(scores_folds) = paste0('Fold no. ',1:kfold)
+  
+  # Cross-Validate
+  start_date = range[1]
+  end_date = start_date + lubridate::days(7)*weeks_per_fold
+  for(k in 1:kfold){
+    print(paste0('Fold ', k, ' of ', kfold))
+    # Get data and forecasts
+    df_fold = subset(df_training, obs_tm >= as.Date(start_date) & obs_tm <= as.Date(end_date))
+    forecasts = model_func(init_date=end_date, quantile_levels=quantile_levels, training_data=df_fold, ...)
+    
+    # Evaluate
+    observations = get_obs_historical(variable, as.Date(end_date))
+    scores_folds[k,] = approx_crps(quantile_levels, forecasts, observations, per_horizon=TRUE)
+    
+    # Update dates for next fold
+    start_date = end_date
+    end_date = end_date + lubridate::days(7)*weeks_per_fold
+  }
+  return(scores_folds)
+}
+
 # Other toolkit functions
 generate_times = function(date){
   #' Function to return dates for which forecasts initiated on date have to be done
@@ -220,5 +265,19 @@ get_obs = function(variable,init_date){
                             MESS_DATUM == dates[4]|
                             MESS_DATUM == dates[5])$TT_TU
   }
+  return(observations)
+}
+
+get_obs_historical = function(variable,init_date){
+  #' variable: String indicating wether wind or temp are to be checked, must be either 'wind' or 'air_temperature'
+  #' init_date: String containing the starting date of observations (always get the observations that match the forecast horizon on this init_date!)
+  
+  if(variable=='wind'){
+    get_fct = get_hist_wind_data
+  } else {
+    get_fct = get_hist_temp_data
+  }
+  obs_data = subset(get_fct(), init_tm==init_date)
+  observations = subset(obs_data, fcst_hour==36 | fcst_hour==48 | fcst_hour==60 | fcst_hour==72 | fcst_hour==84)$obs
   return(observations)
 }
