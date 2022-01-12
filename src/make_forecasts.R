@@ -7,7 +7,7 @@
 # load librarys
 source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
-                   'rugarch','quantmod','quantregForest','moments','TTR'))
+                   'rugarch','quantmod','quantregForest','moments','TTR','gbm'))
 # load functions for forecasting, forecast evaluation and forecast export
 source('src/model_dax.R')
 source('src/model_wind.R')
@@ -19,7 +19,7 @@ source('src/model_temp.R')
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2021-12-22'
+date = '2022-01-12'
 
 
 ### DAX +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -93,8 +93,8 @@ fcst_temp_qrf = temp_qrf(date)
 fcst_temp_qrf
 
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
-temp_model_name = fcst_temp_qrf_model
-fcst_temp = fcst_temp_qrf
+temp_model_name = fcst_temp_multi_base_model
+fcst_temp = fcst_temp_multi
 
 # Visual Check
 #par(mfrow=c(2,1))
@@ -130,9 +130,19 @@ fcst_wind_qrf_model = 'Quantile Regression Forest + CLCT'
 fcst_wind_qrf = wind_qrf(date, addclct=TRUE)
 fcst_wind_qrf
 
+## GBM
+fcst_wind_gbm_model = 'Generalized Boosted Regression Model'
+fcst_wind_gbm = wind_gbm(date)
+fcst_wind_gbm
+
+## GBM + EMOS
+fcst_wind_gbm_emos_model = 'GBM for night, EMOS TL + MSLP for day'
+fcst_wind_gbm_emos = wind_gbm_emos_mix(date)
+fcst_wind_gbm_emos
+
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
-wind_model_name = fcst_wind_qrf_model
-fcst_wind = fcst_wind_qrf
+wind_model_name = fcst_wind_gbm_emos_model
+fcst_wind = fcst_wind_gbm_emos
 
 # Visual check
 plot_forecasts_weather(date, fcst_wind, history_size=14, ylim=c(0,40),
