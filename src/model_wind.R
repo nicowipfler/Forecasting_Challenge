@@ -327,3 +327,62 @@ wind_qrf = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), ntr
   }
   return(fcst)
 }
+
+wind_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE, 
+                    training_data, n.trees=1000, shrinkage=0.01, interaction.depth=1){
+  #' Function that predicts wind based on decision tree boosting
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  #' training_data: df, for crossvalidation
+  #' n.trees, shrinkage, interaction.depth for gbm function
+  
+  if(missing(training_data)){
+    # Get historical data
+    df = get_hist_wind_data() %>% na.omit
+    df_new = get_current_wind_data(init_date)[,-c(1,43)]
+  }
+  else{
+    df = training_data %>% na.omit
+    df_new = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    # Feature Engineering Predictions
+    df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    # Has to be fit per horizon
+    for (j in 1:length(quantile_levels)){
+      quantile = quantile_levels[j]
+      # Train
+      gbm.fit = gbm(
+        formula = obs ~ .,
+        distribution = list(name = "quantile", alpha = quantile),
+        data = df_training,
+        n.trees = n.trees,
+        interaction.depth = interaction.depth,
+        shrinkage = shrinkage,
+        #cv.folds = 5,
+        verbose = FALSE
+      )
+      # Predict
+      fcst[i,j] = predict.gbm(gbm.fit, df_new_predictors, n.trees=gbm.fit$n.trees)
+    }
+    i = i + 1
+  }
+  return(fcst)
+}
+
+wind_gbm_emos_mix = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE, 
+                             training_data, n.trees=1000, shrinkage=0.01, interaction.depth=1){
+  #' Use EMOS TL + MSLP for odd horizons (noon) and gmb for even horizons (night)
+  
+  fcst_gbm = wind_gbm(init_date=init_date, quantile_levels=quantile_levels, addmslp=addmslp, addclct=addclct, addrad=addrad, 
+                      training_data=training_data, n.trees=n.trees, shrinkage=shrinkage, interaction.depth=interaction.depth)
+  fcst_emos = wind_emos_tl_multi(init_date=init_date,quantile_levels=quantile_levels,training_data=training_data)
+  fcst = fcst_emos
+  fcst[2,] = fcst_gbm[2,]
+  fcst[4,] = fcst_gbm[4,]
+  return(fcst)
+}
