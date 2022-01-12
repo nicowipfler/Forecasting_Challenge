@@ -1,7 +1,7 @@
 # Script containing several exploratory analyses aiming to improve existing models or to find new ones
 source('src/toolkit.R')
 load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'crch', 'rdwd', 'ggplot2',
-                   'rugarch','quantmod','quantregForest','moments','TTR'))
+                   'rugarch','quantmod','quantregForest','moments','TTR','gbm'))
 source('src/model_enhancements_toolkit.R')
 #
 
@@ -2757,32 +2757,39 @@ save(catboost_scores_temp, catboost_scores_wind, file='graphics and tables for e
 library(gbm)
 init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15')
 
-wind_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE){
+wind_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE, 
+                    training_data, n.trees=1000, shrinkage=0.001, interaction.depth=1){
   #' Function that predicts wind based on decision tree boosting
   #' init_date: as all the time
   #' quantile_levels: as all the time
   
-  df = get_hist_wind_data() %>% na.omit
+  if(missing(training_data)){
+    # Get historical data
+    df = get_hist_wind_data() %>% na.omit
+    df_new = get_current_wind_data(init_date)[,-c(1,43)]
+  }
+  else{
+    df = training_data %>% na.omit
+    df_new = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   fcst = matrix(nrow = 5, ncol = length(quantile_levels))
   i = 1
   for (lead_time in c(36,48,60,72,84)){
     # Feature Engineering
     df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp=addmslp, addclct=addclct, addrad=addrad)
     # Feature Engineering Predictions
-    df_new = get_current_wind_data(init_date)[,-1]
     df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
     # Has to be fit per horizon
     for (j in 1:length(quantile_levels)){
-      print(paste0('Fitting quantile number ', j))
       quantile = quantile_levels[j]
       # Train
       gbm.fit = gbm(
         formula = obs ~ .,
         distribution = list(name = "quantile", alpha = quantile),
         data = df_training,
-        n.trees = 1000,
-        interaction.depth = 1,
-        shrinkage = 0.001,
+        n.trees = n.trees,
+        interaction.depth = interaction.depth,
+        shrinkage = shrinkage,
         #cv.folds = 5,
         verbose = FALSE
       )
@@ -2804,6 +2811,43 @@ score_gbm_ootb
 # Compare to other models
 load("graphics and tables for elaboration/weather/week10_modelscores.RData")
 wind_model_scores
+
+# Cross-Validate
+cv_scores_gbm_tuning = matrix(NA, nrow=12, ncol=6)
+colnames(cv_scores_gbm_tuning ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+
+i = 1
+for(n.trees in c(100, 1000, 5000)){
+  for(shrinkage in c(0.001, 0.01)){
+    for(interaction.depth in c(1,2)){
+      start_time = Sys.time()
+      message(paste0('Evaluation parameter combination number ', i))
+      cv_scores_gbm_tuning[i,] = apply(cross_validate_weather(wind_gbm, 'wind', n.trees=n.trees, shrinkage=shrinkage, 
+                                                              interaction.depth=interaction.depth), 2, mean)
+      cat(paste0('\nTime Taken: ', Sys.time()-start_time, '\n\n'))
+      i = i + 1
+    }
+  }
+}
+cv_scores_gbm_tuning
+
+
+save(cv_scores_gbm_tuning, file='graphics and tables for elaboration/weather/week10_gbm_cv.RData')
+
+
+# Compare CV Results
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+cv_scores_wind
+#cv_scores_temp
+
+# Check for possible combinations per horizon:
+cv_scores_wind[3,]
+min(cv_scores_gbm_tuning[,3])
+min(cv_scores_gbm_tuning[,5])
+# -> EMOS TL + MSLP for 12:00 forecasts, gbm for night forecasts
+# which gbm parameters? horizon 3: 1000, 0.01, 2; horizon 5: 1000, 0.01, 1
+# Lets take 1000, 0.01, 1 because the gap between the other scores (horizon 3) is pretty small
+wind_gbm_emos_mix('2022-01-12')
 
 
 # WEEK 10: Cross-Validation for weather models ----------------------------
@@ -2849,4 +2893,15 @@ cv_scores_temp[5,] = apply(cross_validate_weather(temp_qrf, 'air_temperature', k
 cv_scores_temp
 
 save(cv_scores_temp, cv_scores_wind, file='graphics and tables for elaboration/weather/week10_cross_validation.RData')
-#load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+
+# Look at scores:
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+load('graphics and tables for elaboration/weather/week10_modelscores.RData')
+# Temp
+cv_scores_temp
+t(temp_model_scores)
+# -> Should use EMOS Multi
+# Wind
+cv_scores_wind
+t(wind_model_scores)
+# -> Should use EMOS TL Multi
