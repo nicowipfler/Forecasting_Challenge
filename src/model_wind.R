@@ -340,10 +340,12 @@ wind_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), add
     # Get historical data
     df = get_hist_wind_data() %>% na.omit
     df_new = get_current_wind_data(init_date)[,-c(1,43)]
+    crossval=FALSE
   }
   else{
     df = training_data %>% na.omit
     df_new = subset(get_hist_wind_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+    crossval=TRUE
   }
   fcst = matrix(nrow = 5, ncol = length(quantile_levels))
   i = 1
@@ -351,7 +353,8 @@ wind_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), add
     # Feature Engineering
     df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp=addmslp, addclct=addclct, addrad=addrad)
     # Feature Engineering Predictions
-    df_new_predictors = qrf_feature_eng_predict(df_new, lead_time, init_date, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    df_new_predictors = qrf_feature_eng_predict(df=df_new, lt=lead_time, init_date=init_date, addmslp=addmslp, addclct=addclct, 
+                                                addrad=addrad, crossval=crossval)
     # Has to be fit per horizon
     for (j in 1:length(quantile_levels)){
       quantile = quantile_levels[j]

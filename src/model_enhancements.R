@@ -2905,3 +2905,106 @@ t(temp_model_scores)
 cv_scores_wind
 t(wind_model_scores)
 # -> Should use EMOS TL Multi
+
+
+# WEEK 11: Wind GBM with additional variables -----------------------------
+
+
+source('src/model_wind.R')
+cv_scores_gbm_add_vars = matrix(NA, nrow=8, ncol=6)
+colnames(cv_scores_gbm_add_vars ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+rownames = c()
+
+i = 1
+for(addmslp in c(FALSE, TRUE)){
+  for(addclct in c(FALSE, TRUE)){
+    for(addrad in c(FALSE, TRUE)){
+      start_time = Sys.time()
+      rownames = append(rownames, paste0('MSLP ', addmslp, ', CLCT ', addclct, ', RAD ', addrad))
+      message(paste0('Evaluation variable combination number ', i, ': '))
+      cv_scores_gbm_add_vars[i,] = apply(cross_validate_weather(wind_gbm, 'wind', addmslp=addmslp, addclct=addclct, addrad=addrad), 
+                                         2, mean)
+      cat(paste0('\nTime Taken: ', Sys.time()-start_time, '\n\n'))
+      i = i + 1
+    }
+  }
+}
+rownames(cv_scores_gbm_add_vars) = rownames
+cv_scores_gbm_add_vars
+save(cv_scores_gbm_add_vars, file="graphics and tables for elaboration/weather/week11_cv_gbm_add.RData")
+
+load("graphics and tables for elaboration/weather/week10_modelscores.RData")
+wind_model_scores
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+cv_scores_wind
+
+# WEEK 11: CV for temp gbm ------------------------------------------------
+
+source('src/model_temp.R')
+# Cross-Validate
+cv_scores_gbm_temp_tuning = matrix(NA, nrow=6, ncol=6)
+colnames(cv_scores_gbm_temp_tuning ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+
+temp_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE, 
+                    training_data, n.trees=1000, shrinkage=0.01, interaction.depth=1){
+  #' Function that predicts wind based on decision tree boosting
+  #' init_date: as all the time
+  #' quantile_levels: as all the time
+  #' training_data: df, for crossvalidation
+  #' n.trees, shrinkage, interaction.depth for gbm function
+  
+  if(missing(training_data)){
+    # Get historical data
+    df = get_hist_temp_data() %>% na.omit
+    df_new = get_current_temp_data(init_date)[,-c(1,43)]
+    crossval=FALSE
+  }
+  else{
+    df = training_data %>% na.omit
+    df_new = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+    crossval=TRUE
+  }
+  fcst = matrix(nrow = 5, ncol = length(quantile_levels))
+  i = 1
+  for (lead_time in c(36,48,60,72,84)){
+    # Feature Engineering
+    df_training = qrf_feature_eng_train(df=df, lt=lead_time, addmslp=addmslp, addclct=addclct, addrad=addrad)
+    # Feature Engineering Predictions
+    df_new_predictors = qrf_feature_eng_predict(df=df_new, lt=lead_time, init_date=init_date, addmslp=addmslp, addclct=addclct, 
+                                                addrad=addrad, crossval=crossval)
+    # Has to be fit per horizon
+    for (j in 1:length(quantile_levels)){
+      quantile = quantile_levels[j]
+      # Train
+      gbm.fit = gbm(
+        formula = obs ~ .,
+        distribution = list(name = "quantile", alpha = quantile),
+        data = df_training,
+        n.trees = n.trees,
+        interaction.depth = interaction.depth,
+        shrinkage = shrinkage,
+        #cv.folds = 5,
+        verbose = FALSE
+      )
+      # Predict
+      fcst[i,j] = predict.gbm(gbm.fit, df_new_predictors, n.trees=gbm.fit$n.trees)
+    }
+    i = i + 1
+  }
+  return(fcst)
+}
+
+i = 1
+for(n.trees in c(500, 1000, 2000)){
+  shrinkage=0.01
+  for(interaction.depth in c(1,2)){
+    start_time = Sys.time()
+    message(paste0('Evaluation parameter combination number ', i))
+    cv_scores_gbm_temp_tuning[i,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=n.trees, shrinkage=shrinkage, 
+                                                            interaction.depth=interaction.depth), 2, mean)
+    cat(paste0('\nTime Taken: ', Sys.time()-start_time, '\n\n'))
+    i = i + 1
+  }
+}
+cv_scores_gbm_temp_tuning
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')

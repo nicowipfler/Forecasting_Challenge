@@ -218,6 +218,7 @@ cross_validate_weather = function(model_func, variable, quantile_levels=c(0.1,0.
       test_date = test_date + lubridate::days(7)
     }
     scores_crossval[k,] = apply(scores_fold_k, 2, mean, na.rm=TRUE)
+    cat(paste0('Score: ', mean(scores_crossval[k,]), '\n'))
     # Update borders of test data set for next fold
     start_date = end_date
     end_date = end_date + lubridate::days(7)*weeks_per_fold

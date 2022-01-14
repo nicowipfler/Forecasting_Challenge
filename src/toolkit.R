@@ -286,7 +286,7 @@ qrf_feature_eng_train = function(df, lt, addmslp=FALSE, addclct=FALSE, addrad=FA
   return(df_pred)
 }
 
-qrf_feature_eng_predict = function(df, lt, init_date, addmslp=FALSE, addclct=FALSE, addrad=FALSE){
+qrf_feature_eng_predict = function(df, lt, init_date, addmslp=FALSE, addclct=FALSE, addrad=FALSE, crossval=FALSE){
   #' Function that makes feature engineering for weather quantile regression forests predictions.
   #' df: data frame containing the raw training data
   #' lt: lead time we are currently training
@@ -305,31 +305,61 @@ qrf_feature_eng_predict = function(df, lt, init_date, addmslp=FALSE, addclct=FAL
   df_lt$mon = month(as.Date(init_date)+floor(lt/24))
   df_working = select(df_lt, ens_mean, ens_med, ens_sd, dez01, dez09, iqr, skew, kurt, mon)
   if (addmslp){
-    df_varname = get_current_data_varname('mslp', init_date)
+    if (crossval){
+      df_varname = get_hist_data_varname('mslp')
+      df_varname = subset(df_varname, init_tm == as.Date(init_date))
+      range = 7:46
+    } else {
+      df_varname = get_current_data_varname('mslp', init_date)
+      range = 3:42
+    }
     df_varname_lt = subset(df_varname, fcst_hour == lt)
-    df_varname_lt$dez01 = apply(df_varname_lt[3:42], 1, quantile, na.rm=T, probs= 0.1)
-    df_varname_lt$ens_mean = apply(df_varname_lt[3:42], 1, mean, na.rm=T, probs= 0.1)
-    df_varname_lt$dez09 = apply(df_varname_lt[3:42], 1, quantile, na.rm=T, probs= 0.9)
+    df_varname_lt$dez01 = apply(df_varname_lt[range], 1, quantile, na.rm=T, probs= 0.1)
+    df_varname_lt$ens_mean = apply(df_varname_lt[range], 1, mean, na.rm=T, probs= 0.1)
+    df_varname_lt$dez09 = apply(df_varname_lt[range], 1, quantile, na.rm=T, probs= 0.9)
     df_varname_final = select(df_varname_lt, 'dez01_mslp'=dez01, 'ens_mean_mslp'=ens_mean, 'dez09_mslp'=dez09)
+    if(dim(df_varname_final)[1]==0){
+      df_varname_final = data.frame('dez01_mslp' = NA, 'ens_mean_mslp' = NA, 'dez09_mslp' = NA)
+    }
     df_working = merge(df_working, df_varname_final)
   }
   if (addclct){
-    df_varname = get_current_data_varname('clct', init_date)
+    if (crossval){
+      df_varname = get_hist_data_varname('clct')
+      df_varname = subset(df_varname, init_tm == as.Date(init_date))
+      range = 7:46
+    } else {
+      df_varname = get_current_data_varname('clct', init_date)
+      range = 3:42
+    }
     df_varname_lt = subset(df_varname, fcst_hour == lt)
-    df_varname_lt$dez01 = apply(df_varname_lt[3:42], 1, quantile, na.rm=T, probs= 0.1)
-    df_varname_lt$ens_mean = apply(df_varname_lt[3:42], 1, mean, na.rm=T, probs= 0.1)
-    df_varname_lt$dez09 = apply(df_varname_lt[3:42], 1, quantile, na.rm=T, probs= 0.9)
+    df_varname_lt$dez01 = apply(df_varname_lt[range], 1, quantile, na.rm=T, probs= 0.1)
+    df_varname_lt$ens_mean = apply(df_varname_lt[range], 1, mean, na.rm=T, probs= 0.1)
+    df_varname_lt$dez09 = apply(df_varname_lt[range], 1, quantile, na.rm=T, probs= 0.9)
     df_varname_final = select(df_varname_lt, 'dez01_clct'=dez01, 'ens_mean_clct'=ens_mean, 'dez09_clct'=dez09)
+    if(dim(df_varname_final)[1]==0){
+      df_varname_final = data.frame('dez01_clct' = NA, 'ens_mean_clct' = NA, 'dez09_clct' = NA)
+    }
     df_working = merge(df_working, df_varname_final)
   }
   if (addrad){
-    df_varname = get_current_data_varname('direct_rad', init_date)
+    if (crossval){
+      df_varname = get_hist_data_varname('direct_rad')
+      df_varname = subset(df_varname, init_tm == as.Date(init_date))
+      range = 7:46
+    } else {
+      df_varname = get_current_data_varname('direct_rad', init_date)
+      range = 3:42
+    }
     df_varname_lt = subset(df_varname, fcst_hour == lt)
-    df_varname_lt$dez01 = apply(df_varname_lt[3:42], 1, quantile, na.rm=T, probs= 0.1)
-    df_varname_lt$ens_mean = apply(df_varname_lt[3:42], 1, mean, na.rm=T, probs= 0.1)
-    df_varname_lt$dez09 = apply(df_varname_lt[3:42], 1, quantile, na.rm=T, probs= 0.9)
+    df_varname_lt$dez01 = apply(df_varname_lt[range], 1, quantile, na.rm=T, probs= 0.1)
+    df_varname_lt$ens_mean = apply(df_varname_lt[range], 1, mean, na.rm=T, probs= 0.1)
+    df_varname_lt$dez09 = apply(df_varname_lt[range], 1, quantile, na.rm=T, probs= 0.9)
     df_varname_final = select(df_varname_lt, 'dez01_direct_rad'=dez01, 'ens_mean_direct_rad'=ens_mean, 
                               'dez09_direct_rad'=dez09)
+    if(dim(df_varname_final)[1]==0){
+      df_varname_final = data.frame('dez01_direct_rad' = NA, 'ens_mean_direct_rad' = NA, 'dez09_direct_rad' = NA)
+    }
     df_working = merge(df_working, df_varname_final)
   }
   return(df_working)
