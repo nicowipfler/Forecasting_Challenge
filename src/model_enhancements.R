@@ -2932,6 +2932,7 @@ for(addmslp in c(FALSE, TRUE)){
 rownames(cv_scores_gbm_add_vars) = rownames
 cv_scores_gbm_add_vars
 save(cv_scores_gbm_add_vars, file="graphics and tables for elaboration/weather/week11_cv_gbm_add.RData")
+load("graphics and tables for elaboration/weather/week11_cv_gbm_add.RData")
 
 load("graphics and tables for elaboration/weather/week10_modelscores.RData")
 wind_model_scores
@@ -2995,7 +2996,7 @@ temp_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), add
 }
 
 i = 1
-for(n.trees in c(500, 1000, 2000)){
+for(n.trees in c(1000, 2000, 3000)){
   shrinkage=0.01
   for(interaction.depth in c(1,2)){
     start_time = Sys.time()
@@ -3007,4 +3008,35 @@ for(n.trees in c(500, 1000, 2000)){
   }
 }
 cv_scores_gbm_temp_tuning
+save(cv_scores_gbm_temp_tuning,file='graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
+load('graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
 load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+cv_scores_temp
+
+# Explore even more trees
+cv_scores_gbm_temp_tuning_more_trees = matrix(NA, nrow=7, ncol=6)
+colnames(cv_scores_gbm_temp_tuning ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+
+i = 1
+for(n.trees in c(4000, 5000, 6000, 7000, 8000, 9000, 10000)){
+  start_time = Sys.time()
+  message(paste0('Evaluation parameter combination number ', i))
+  cv_scores_gbm_temp_tuning_more_trees[i,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=n.trees, 
+                                                                          shrinkage=0.01, interaction.depth=1), 2, mean)
+  cat(paste0('\nTime Taken: ', Sys.time()-start_time, '\n\n'))
+  i = i + 1
+}
+
+cv_scores_gbm_temp_tuning_more_trees
+
+
+# WEEK 11: Test One additional day as input feature DAX QRF ---------------
+
+
+source('src/model_dax.R')
+init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
+               '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
+dax_qrf_add_day_score = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE, day_before=TRUE)
+dax_qrf_add_day_score
+load('graphics and tables for elaboration/DAX/week9_modelscores.RData')
+model_scores[,1]
