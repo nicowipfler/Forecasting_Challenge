@@ -2,7 +2,8 @@
 
 
 dax_baseline = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975)){
-  data = get_dax_data_directly(init_date, hist_size=1000)
+  data = get_dax_data_directly(init_date)#, hist_size=1000) # this includes weekends and holidays
+  data = data[1:1000,]
   forecasts = matrix(NA, nrow=5, ncol=length(quantile_levels))
   for(horizon in 1:5){
     forecasts[horizon,] = quantile(data[,paste0('ret',horizon)], quantile_levels, na.rm=TRUE)
@@ -139,7 +140,7 @@ dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.9
 
 
 dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), 
-                   add_futures=TRUE, add_msci=FALSE, add_ucits=FALSE, add_us_futures=FALSE){
+                   add_futures=TRUE, add_msci=FALSE, add_ucits=FALSE, add_us_futures=FALSE, day_before=FALSE){
   #' Function for Quantile Regression Forest for DAX using stock market statistics calculated from GDAXI values
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
@@ -165,6 +166,16 @@ dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
   }
   data = dax_qrf_feature_eng_train(init_date, 
                                    add_futures=add_futures, add_msci=add_msci, add_ucits=add_ucits, add_us_futures=add_us_futures)
+  if(day_before){
+    # TODO
+    # Add metrics of the day before to predictors
+    data_1_earlier = data[1:(dim(data)[1]-1),]
+    data = data[2:(dim(data)[1]),]
+    index(data_1_earlier) = index(data)
+    colnames(data_1_earlier) = paste0(colnames(data_1_earlier),'_1_earlier')
+    data = cbind(data, data_1_earlier)
+    predictor_variables = append(predictor_variables, paste0(predictor_variables, '_1_earlier'))
+  }
   df_predict = data[dim(data)[1], predictor_variables]
   # QRF
   predictions = matrix(NA, ncol=length(quantile_levels), nrow=5)
@@ -173,7 +184,7 @@ dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
     df_predict_train = data[1:(dim(data)[1]-1), predictor_variables]
     df_predict_train = df_predict_train[-((dim(df_predict_train)[1]-(horizon-1)):dim(df_predict_train)[1]),] # Leave out some predictors
     df_obs_train = data[1:(dim(data)[1]-1),c(paste0("ret",horizon))]
-    df_obs_train = df_obs_train[-(1:horizon),] # Leave out first 5 obs -> Predict ret5 based on variables measured 5 day before
+    df_obs_train = df_obs_train[-(1:horizon),] # Leave out first 'horizon' obs -> Predict ret5 based on variables measured 5 day before
     # Train and predict
     qrf = quantregForest(df_predict_train, df_obs_train, nthreads = 4)
     predictions[horizon,] = predict(qrf, newdata = df_predict, what = quantile_levels)

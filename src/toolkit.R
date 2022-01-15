@@ -464,3 +464,14 @@ dax_qrf_feature_eng_train = function(init_date, hist=1000, add_futures=TRUE, add
   data = data[,predictor_variables] %>% na.omit
   return(data)
 }
+
+move_date_to_next_working_day = function(date){
+  date = as.Date(date)
+  if(weekdays(date)=='Freitag'){
+    out = date + lubridate::days(3)
+  }
+  else{
+    out = date + lubridate::days(1)
+  }
+  return(as.Date(out))
+}
