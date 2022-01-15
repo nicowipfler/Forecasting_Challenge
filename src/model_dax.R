@@ -140,14 +140,16 @@ dax_quantgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.9
 
 
 dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), 
-                   add_futures=TRUE, add_msci=FALSE, add_ucits=FALSE, add_us_futures=FALSE, day_before=FALSE){
+                   add_futures=TRUE, add_msci=FALSE, add_ucits=FALSE, add_us_futures=FALSE, days_before=0){
   #' Function for Quantile Regression Forest for DAX using stock market statistics calculated from GDAXI values
   #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   #' add_futures: Boolean, wether to contain DAX Futures from DY (FDAX.EX)
+  #' add_...: Same as add_futures, but other indices
+  #' days_before: Integer containing the amount of days before the init date that should be used for predictions
   
   # Get data
-  predictor_variables = c("ret1", "RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV")
+  predictor_variables = c("ret1", "ret2", "ret3", "ret4", "ret5", "RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV")
   if(add_futures){
     predictor_variables = append(predictor_variables, "DY.Adjusted")
     predictor_variables = append(predictor_variables, "DY.Volume")
@@ -164,17 +166,20 @@ dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
     predictor_variables = append(predictor_variables, "YM.F.Adjusted")
     predictor_variables = append(predictor_variables, "YM.F.Volume")
   }
-  data = dax_qrf_feature_eng_train(init_date, 
-                                   add_futures=add_futures, add_msci=add_msci, add_ucits=add_ucits, add_us_futures=add_us_futures)
-  if(day_before){
-    # TODO
-    # Add metrics of the day before to predictors
-    data_1_earlier = data[1:(dim(data)[1]-1),]
-    data = data[2:(dim(data)[1]),]
-    index(data_1_earlier) = index(data)
-    colnames(data_1_earlier) = paste0(colnames(data_1_earlier),'_1_earlier')
-    data = cbind(data, data_1_earlier)
-    predictor_variables = append(predictor_variables, paste0(predictor_variables, '_1_earlier'))
+  data = dax_qrf_feature_eng_train(init_date, add_futures=add_futures, add_msci=add_msci, 
+                                   add_ucits=add_ucits, add_us_futures=add_us_futures)
+  # Add earlier days as predictors
+  data = data[,predictor_variables]
+  predictor_variables_base = predictor_variables
+  if(days_before>1){
+    for(num_day in 1:days_before){
+      data_earlier = data[1:(dim(data)[1]-num_day),predictor_variables_base]
+      data = data[(1+num_day):(dim(data)[1]),]
+      index(data_earlier) = index(data)
+      colnames(data_earlier) = paste0(colnames(data_earlier),'_',num_day,'_earlier')
+      data = cbind(data, data_earlier)
+      predictor_variables = append(predictor_variables, paste0(predictor_variables_base,'_',num_day,'_earlier'))
+    }
   }
   df_predict = data[dim(data)[1], predictor_variables]
   # QRF

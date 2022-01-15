@@ -2941,6 +2941,7 @@ cv_scores_wind
 
 # WEEK 11: CV for temp gbm ------------------------------------------------
 
+
 source('src/model_temp.R')
 # Cross-Validate
 cv_scores_gbm_temp_tuning = matrix(NA, nrow=6, ncol=6)
@@ -3026,17 +3027,63 @@ for(n.trees in c(4000, 5000, 6000, 7000, 8000, 9000, 10000)){
   cat(paste0('\nTime Taken: ', Sys.time()-start_time, '\n\n'))
   i = i + 1
 }
-
 cv_scores_gbm_temp_tuning_more_trees
 
 
-# WEEK 11: Test One additional day as input feature DAX QRF ---------------
+# WEEK 11: Test One additional day as input features DAX QRF --------------
 
 
 source('src/model_dax.R')
 init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', 
                '2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17')
-dax_qrf_add_day_score = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE, day_before=TRUE)
+dax_qrf_add_day_score = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE, days_before=1)
 dax_qrf_add_day_score
 load('graphics and tables for elaboration/DAX/week9_modelscores.RData')
 model_scores[,1]
+
+
+# WEEK 11: Test n additional days as input features DAX QRF ---------------
+
+
+source('src/model_dax.R')
+init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', '2021-10-27', '2021-11-03', 
+               '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15', '2021-12-22', '2022-01-12')
+scores_dax_qrf_days_before = matrix(NA, nrow=11, ncol=6)
+colnames(scores_dax_qrf_days_before ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+
+i = 1
+for(day_count in c(0,1,2,3,4,5,6,7,14,21,28)){
+  cat(paste0('Model: ',i,'\n'))
+  scores_dax_qrf_days_before[i,] = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE, days_before=day_count)
+  cat(paste0('Average Score: ',scores_dax_qrf_days_before[i,1],'\n\n'))
+  i = i + 1
+}
+scores_dax_qrf_days_before
+
+
+# WEEK 11: Score all DAX models -------------------------------------------
+
+
+source('src/model_dax.R')
+init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', '2021-10-27', '2021-11-03', 
+               '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15', '2021-12-22', '2022-01-12')
+scores_dax_all_models = matrix(NA, nrow=8, ncol=6)
+rownames(scores_dax_all_models) = c("Baseline", "Quantreg", "GARCH", "QuantGARCH", "QRF", "QRF 2 days", "QRFGARCH", "QRFGARCH 2 days",
+                                    "QRFGARCH 1 day", "QRFGARCH 4 days")
+
+scores_dax_all_models[1,] = evaluate_model_dax(dax_baseline, init_dates=init_dates, per_horizon=TRUE)
+scores_dax_all_models[2,] = evaluate_model_dax(dax_quantreg, init_dates=init_dates, per_horizon=TRUE, 
+                                               rolling_window=1100, quantreg=TRUE)
+scores_dax_all_models[3,] = evaluate_model_dax(dax_ugarch, init_dates=init_dates, per_horizon=TRUE, garchorder=c(6,6))
+scores_dax_all_models[4,] = evaluate_model_dax(dax_quantgarch, init_dates=init_dates, per_horizon=TRUE)
+scores_dax_all_models[5,] = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE)
+scores_dax_all_models[6,] = evaluate_model_dax(dax_qrf, init_dates=init_dates, per_horizon=TRUE, days_before=2)
+scores_dax_all_models[7,] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates, per_horizon=TRUE, 
+                                               add_futures=TRUE, weight_garch=0.9)
+scores_dax_all_models[8,] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates, per_horizon=TRUE, 
+                                               add_futures=TRUE, weight_garch=0.9, days_before=2)
+scores_dax_all_models[9,] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates, per_horizon=TRUE, 
+                                               add_futures=TRUE, weight_garch=0.9, days_before=1)
+scores_dax_all_models[10,] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates, per_horizon=TRUE, 
+                                               add_futures=TRUE, weight_garch=0.9, days_before=4)
+scores_dax_all_models
