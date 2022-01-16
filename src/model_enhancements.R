@@ -2913,7 +2913,7 @@ t(wind_model_scores)
 source('src/model_wind.R')
 cv_scores_gbm_add_vars = matrix(NA, nrow=8, ncol=6)
 colnames(cv_scores_gbm_add_vars ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
-rownames = c()
+rownames = c('Test')
 
 i = 1
 for(addmslp in c(FALSE, TRUE)){
@@ -2929,15 +2929,20 @@ for(addmslp in c(FALSE, TRUE)){
     }
   }
 }
-rownames(cv_scores_gbm_add_vars) = rownames
+rownames(cv_scores_gbm_add_vars) = rownames[-1]
 cv_scores_gbm_add_vars
-save(cv_scores_gbm_add_vars, file="graphics and tables for elaboration/weather/week11_cv_gbm_add.RData")
-load("graphics and tables for elaboration/weather/week11_cv_gbm_add.RData")
+save(cv_scores_gbm_add_vars, file="graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_additionalvars.RData")
 
+# View scores
+load("graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_additionalvars.RData")
+cv_scores_gbm_add_vars
+
+# Compare
 load("graphics and tables for elaboration/weather/week10_modelscores.RData")
 wind_model_scores
 load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
 cv_scores_wind
+
 
 # WEEK 11: CV for temp gbm ------------------------------------------------
 
@@ -3009,10 +3014,6 @@ for(n.trees in c(1000, 2000, 3000)){
   }
 }
 cv_scores_gbm_temp_tuning
-save(cv_scores_gbm_temp_tuning,file='graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
-load('graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
-load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
-cv_scores_temp
 
 # Explore even more trees
 cv_scores_gbm_temp_tuning_more_trees = matrix(NA, nrow=8, ncol=6)
@@ -3029,8 +3030,11 @@ for(n.trees in c(4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000)){
   i = i + 1
 }
 cv_scores_gbm_temp_tuning_more_trees
-save(cv_scores_gbm_temp_tuning_more_trees, file='graphics and tables for elaboration/weather/week11_temp_gbm_ntrees.RData')
+save(cv_scores_gbm_temp_tuning, cv_scores_gbm_temp_tuning_more_trees, 
+     file='graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
 
+load('graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
 
 # WEEK 11: Test One additional day as input features DAX QRF --------------
 
@@ -3089,5 +3093,9 @@ scores_dax_all_models[9,] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dat
 scores_dax_all_models[10,] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates, per_horizon=TRUE, 
                                                add_futures=TRUE, weight_garch=0.9, days_before=4)
 scores_dax_all_models
-#save(scores_dax_all_models, scores_dax_qrf_days_before, file='graphics and tables for elaboration/DAX/week11_modelscores.RData')
+save(scores_dax_all_models, scores_dax_qrf_days_before, file='graphics and tables for elaboration/DAX/week11_modelscores.RData')
+
+# View scores
 load('graphics and tables for elaboration/DAX/week11_modelscores.RData')
+scores_dax_all_models
+scores_dax_qrf_days_before
