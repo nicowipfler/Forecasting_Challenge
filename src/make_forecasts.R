@@ -140,9 +140,15 @@ fcst_wind_gbm_emos_model = 'GBM for night, EMOS TL + MSLP for day'
 fcst_wind_gbm_emos = wind_gbm_emos_mix(date)
 fcst_wind_gbm_emos
 
+
+## GBM + EMOS
+fcst_wind_gbm_emos_mslp_model = 'GBM + MSLP for night, EMOS TL + MSLP for day'
+fcst_wind_gbm_emos_mslp = wind_gbm_emos_mix(date, addmslp=TRUE)
+fcst_wind_gbm_emos_mslp
+
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
-wind_model_name = fcst_wind_gbm_emos_model
-fcst_wind = fcst_wind_gbm_emos
+wind_model_name = fcst_wind_gbm_emos_mslp_model
+fcst_wind = fcst_wind_gbm_emos_mslp
 
 # Visual check
 plot_forecasts_weather(date, fcst_wind, history_size=14, ylim=c(0,40),

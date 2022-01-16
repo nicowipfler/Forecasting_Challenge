@@ -2815,12 +2815,14 @@ wind_model_scores
 # Cross-Validate
 cv_scores_gbm_tuning = matrix(NA, nrow=12, ncol=6)
 colnames(cv_scores_gbm_tuning ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+rownames = c('Dummy')
 
 i = 1
 for(n.trees in c(100, 1000, 5000)){
   for(shrinkage in c(0.001, 0.01)){
     for(interaction.depth in c(1,2)){
       start_time = Sys.time()
+      rownames = append(rownames, paste0('n=', n.trees, ', shrink=', shrinkage, ', i.d=', interaction.depth))
       message(paste0('Evaluation parameter combination number ', i))
       cv_scores_gbm_tuning[i,] = apply(cross_validate_weather(wind_gbm, 'wind', n.trees=n.trees, shrinkage=shrinkage, 
                                                               interaction.depth=interaction.depth), 2, mean)
@@ -2829,6 +2831,7 @@ for(n.trees in c(100, 1000, 5000)){
     }
   }
 }
+rownames(cv_scores_gbm_tuning) = rownames[-1]
 cv_scores_gbm_tuning
 
 
@@ -3099,3 +3102,30 @@ save(scores_dax_all_models, scores_dax_qrf_days_before, file='graphics and table
 load('graphics and tables for elaboration/DAX/week11_modelscores.RData')
 scores_dax_all_models
 scores_dax_qrf_days_before
+
+
+# WEEK 11: Wind GBM + EMOS ------------------------------------------------
+
+
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+cv_scores_wind
+load('graphics and tables for elaboration/weather/week10_gbm_cv.RData')
+cv_scores_gbm_tuning
+load('graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_additionalvars.RData')
+cv_scores_gbm_add_vars
+
+# Score EMOS Multi for day, GBM for night (different gbm models)
+source('src/model_wind.R')
+cv_scores_gbm_emos = matrix(NA, 5, 6)
+rownames(cv_scores_gbm_emos) = c('EMOS TL MSLP', 'GBM Base', 'GBM MSLP', 'EMOS TL MSLP + GBM Base', 'EMOS TL MSLP + GBM MSLP')
+colnames(cv_scores_gbm_emos) = colnames(cv_scores_wind)
+cv_scores_gbm_emos[1,] = cv_scores_wind[3,]
+cv_scores_gbm_emos[2,] = cv_scores_gbm_tuning[7,]
+cv_scores_gbm_emos[3,] = cv_scores_gbm_add_vars[5,]
+cv_scores_gbm_emos[4,] = apply(cross_validate_weather(wind_gbm_emos_mix, 'wind'), 2, mean)
+cv_scores_gbm_emos[5,] = apply(cross_validate_weather(wind_gbm_emos_mix, 'wind', addmslp=TRUE), 2, mean)
+save(cv_scores_gbm_emos, file='graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_emos.RData')
+
+# Show scores
+load('graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_emos.RData')
+cv_scores_gbm_emos

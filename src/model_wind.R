@@ -380,6 +380,7 @@ wind_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), add
 wind_gbm_emos_mix = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE, 
                              training_data, n.trees=1000, shrinkage=0.01, interaction.depth=1){
   #' Use EMOS TL + MSLP for odd horizons (noon) and gmb for even horizons (night)
+  #' addxyz refers to GBM model (EMOS is fixed: includes MSLP)
   
   fcst_gbm = wind_gbm(init_date=init_date, quantile_levels=quantile_levels, addmslp=addmslp, addclct=addclct, addrad=addrad, 
                       training_data=training_data, n.trees=n.trees, shrinkage=shrinkage, interaction.depth=interaction.depth)
