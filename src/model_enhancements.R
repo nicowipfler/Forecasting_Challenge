@@ -3015,11 +3015,12 @@ load('graphics and tables for elaboration/weather/week10_cross_validation.RData'
 cv_scores_temp
 
 # Explore even more trees
-cv_scores_gbm_temp_tuning_more_trees = matrix(NA, nrow=7, ncol=6)
-colnames(cv_scores_gbm_temp_tuning ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+cv_scores_gbm_temp_tuning_more_trees = matrix(NA, nrow=8, ncol=6)
+colnames(cv_scores_gbm_temp_tuning_more_trees ) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+rownames(cv_scores_gbm_temp_tuning_more_trees) = paste0('n.trees = ',c(4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000))
 
 i = 1
-for(n.trees in c(4000, 5000, 6000, 7000, 8000, 9000, 10000)){
+for(n.trees in c(4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000)){
   start_time = Sys.time()
   message(paste0('Evaluation parameter combination number ', i))
   cv_scores_gbm_temp_tuning_more_trees[i,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=n.trees, 
@@ -3028,6 +3029,7 @@ for(n.trees in c(4000, 5000, 6000, 7000, 8000, 9000, 10000)){
   i = i + 1
 }
 cv_scores_gbm_temp_tuning_more_trees
+save(cv_scores_gbm_temp_tuning_more_trees, file='graphics and tables for elaboration/weather/week11_temp_gbm_ntrees.RData')
 
 
 # WEEK 11: Test One additional day as input features DAX QRF --------------
@@ -3087,3 +3089,5 @@ scores_dax_all_models[9,] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dat
 scores_dax_all_models[10,] = evaluate_model_dax(dax_qrfgarch, init_dates=init_dates, per_horizon=TRUE, 
                                                add_futures=TRUE, weight_garch=0.9, days_before=4)
 scores_dax_all_models
+#save(scores_dax_all_models, scores_dax_qrf_days_before, file='graphics and tables for elaboration/DAX/week11_modelscores.RData')
+load('graphics and tables for elaboration/DAX/week11_modelscores.RData')
