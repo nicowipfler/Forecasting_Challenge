@@ -197,13 +197,14 @@ dax_qrf = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
   return(predictions)
 }
 
+
 dax_qrfgarch = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), garchorder=c(6,6), 
-                        history_size = 1400, solver='solnp', weight_garch=0.5, add_futures=TRUE){
+                        history_size = 1400, solver='solnp', weight_garch=0.5, add_futures=TRUE, days_before=0){
   #' Arguments as used in subfunctions
   
   fcst_garch = dax_ugarch(init_date = init_date, quantile_levels = quantile_levels, 
                           garchorder = garchorder, history_size = history_size, solver = solver)
-  fcst_qrf = dax_qrf(init_date=init_date, quantile_levels=quantile_levels, add_futures=add_futures)
+  fcst_qrf = dax_qrf(init_date=init_date, quantile_levels=quantile_levels, add_futures=add_futures, days_before=0)
   fcst_out = combine_forecasts(fcst_garch, fcst_qrf, weights = c(weight_garch, 1-weight_garch))
   return(fcst_out)
 }
