@@ -3129,3 +3129,111 @@ save(cv_scores_gbm_emos, file='graphics and tables for elaboration/weather/week1
 # Show scores
 load('graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_emos.RData')
 cv_scores_gbm_emos
+
+
+# WEEK 11: DAX GBM Test ---------------------------------------------------
+
+
+# Implement first version
+dax_gbm = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975), 
+                   add_futures=FALSE, add_msci=FALSE, add_ucits=FALSE, add_us_futures=FALSE, days_before=0, 
+                   n.trees=1000, shrinkage=0.01, interaction.depth=1){
+  #' Function for Quantile Regression Forest for DAX using stock market statistics calculated from GDAXI values
+  #' init_date: String containing the date of initialization of the forecasts, e.g. "2021-10-27"
+  #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
+  #' add_futures: Boolean, wether to contain DAX Futures from DY (FDAX.EX)
+  #' add_...: Same as add_futures, but other indices
+  #' days_before: Integer containing the amount of days before the init date that should be used for predictions
+  
+  # Get data
+  predictor_variables = c("ret1", "ret2", "ret3", "ret4", "ret5", "RSI", "Stoch_Oscill", "MACD", "ROC", "WPR", "CCI", "ADX", "OBV")
+  if(add_futures){
+    predictor_variables = append(predictor_variables, "DY.Adjusted")
+    predictor_variables = append(predictor_variables, "DY.Volume")
+  }
+  if(add_msci){
+    predictor_variables = append(predictor_variables, "XWD.TO.Adjusted")
+    predictor_variables = append(predictor_variables, "XWD.TO.Volume")
+  }
+  if(add_ucits){
+    predictor_variables = append(predictor_variables, "EXS1.DE.Adjusted")
+    predictor_variables = append(predictor_variables, "EXS1.DE.Volume")
+  }
+  if(add_us_futures){
+    predictor_variables = append(predictor_variables, "YM.F.Adjusted")
+    predictor_variables = append(predictor_variables, "YM.F.Volume")
+  }
+  data = dax_qrf_feature_eng_train(init_date, add_futures=add_futures, add_msci=add_msci, 
+                                   add_ucits=add_ucits, add_us_futures=add_us_futures)
+  # Add earlier days as predictors
+  data = data[,predictor_variables]
+  predictor_variables_base = predictor_variables
+  if(days_before>1){
+    for(num_day in 1:days_before){
+      data_earlier = data[1:(dim(data)[1]-num_day),predictor_variables_base]
+      data = data[(1+num_day):(dim(data)[1]),]
+      index(data_earlier) = index(data)
+      colnames(data_earlier) = paste0(colnames(data_earlier),'_',num_day,'_earlier')
+      data = cbind(data, data_earlier)
+      predictor_variables = append(predictor_variables, paste0(predictor_variables_base,'_',num_day,'_earlier'))
+    }
+  }
+  df_predict = data[dim(data)[1], predictor_variables]
+  # QRF
+  predictions = matrix(NA, ncol=length(quantile_levels), nrow=5)
+  for(horizon in 1:5){
+    # Training data
+    df_predict_train = data[1:(dim(data)[1]-1), predictor_variables]
+    df_predict_train = df_predict_train[-((dim(df_predict_train)[1]-(horizon-1)):dim(df_predict_train)[1]),] # Leave out some predictors
+    df_obs_train = data[1:(dim(data)[1]-1),c(paste0("ret",horizon))]
+    df_obs_train = df_obs_train[-(1:horizon),] # Leave out first 'horizon' obs -> Predict ret5 based on variables measured 5 day before
+    index(df_obs_train) = index(df_predict_train)
+    colnames(df_obs_train) = c('target') # The target is retn after n days
+    df_train = merge(df_predict_train, df_obs_train) %>% na.omit
+    # Train and predict
+    for(n_quantile in 1:length(quantile_levels)){
+      gbm.fit = gbm(
+        formula = target ~ .,
+        distribution = list(name = "quantile", alpha = quantile_levels[n_quantile]),
+        data = df_train,
+        n.trees = n.trees,
+        interaction.depth = interaction.depth,
+        shrinkage = shrinkage,
+        #cv.folds = 5,
+        verbose = FALSE
+      )
+      predictions[horizon,n_quantile] = predict.gbm(gbm.fit, df_predict, n.trees=gbm.fit$n.trees)
+    }
+  }
+  return(predictions)
+}
+# Check that its working
+dax_gbm('2022-01-12')
+dax_gbm('2022-01-12', add_futures=TRUE, days_before=3)
+
+load('graphics and tables for elaboration/DAX/week11_modelscores.RData')
+scores_dax_all_models
+#scores_dax_qrf_days_before
+
+# Evaluate
+init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', '2021-10-27', '2021-11-03', 
+               '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15', '2021-12-22', '2022-01-12')
+scores_dax_gbm = matrix(NA, 8, 6)
+colnames(scores_dax_gbm) = colnames(scores_dax_all_models)
+rownames(scores_dax_gbm) = c('Base', 'With Futures', 'With Futures and 3 days before', 'Only three days before', 
+                             'Base with 3000 trees', 'With Futures and 3000 trees', 'See above and 3000 trees', 
+                             'See above and 3000 trees')
+
+scores_dax_gbm[1,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE)
+scores_dax_gbm[2,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, add_futures = TRUE)
+scores_dax_gbm[3,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, add_futures = TRUE, days_before = 3)
+scores_dax_gbm[4,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, days_before = 3)
+scores_dax_gbm[5,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, n.trees = 3000)
+scores_dax_gbm[6,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, add_futures = TRUE, n.trees = 3000)
+scores_dax_gbm[7,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, add_futures = TRUE, days_before = 3, 
+                                        n.trees = 3000)
+scores_dax_gbm[8,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, days_before = 3, n.trees = 3000)
+scores_dax_gbm
+
+# Compare
+scores_dax_all_models
