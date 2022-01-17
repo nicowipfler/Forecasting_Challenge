@@ -3037,7 +3037,11 @@ save(cv_scores_gbm_temp_tuning, cv_scores_gbm_temp_tuning_more_trees,
      file='graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
 
 load('graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
+cv_scores_gbm_temp_tuning
+cv_scores_gbm_temp_tuning_more_trees
 load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+cv_scores_temp
+
 
 # WEEK 11: Test One additional day as input features DAX QRF --------------
 
@@ -3124,11 +3128,26 @@ cv_scores_gbm_emos[2,] = cv_scores_gbm_tuning[7,]
 cv_scores_gbm_emos[3,] = cv_scores_gbm_add_vars[5,]
 cv_scores_gbm_emos[4,] = apply(cross_validate_weather(wind_gbm_emos_mix, 'wind'), 2, mean)
 cv_scores_gbm_emos[5,] = apply(cross_validate_weather(wind_gbm_emos_mix, 'wind', addmslp=TRUE), 2, mean)
-save(cv_scores_gbm_emos, file='graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_emos.RData')
+
+# Tune n.trees
+cv_scores_gbm_emos_trees = matrix(NA, 6, 6)
+rownames(cv_scores_gbm_emos_trees) = c('20', '50', '100', '500', '1000', '2000')
+colnames(cv_scores_gbm_emos_trees) = colnames(cv_scores_wind)
+i = 1
+for(n.trees in c(20, 50, 100, 500, 1000, 2000)){
+  cat(paste0('n.trees = ', n.trees, '\n'))
+  cv_scores_gbm_emos_trees[i,] = apply(cross_validate_weather(wind_gbm_emos_mix, 'wind', n.trees=n.trees), 2, mean)
+  i = i + 1
+}
+
+# Save
+save(cv_scores_gbm_emos, cv_scores_gbm_emos_trees, 
+     file='graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_emos.RData')
 
 # Show scores
 load('graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_emos.RData')
 cv_scores_gbm_emos
+cv_scores_gbm_emos_trees
 
 
 # WEEK 11: DAX GBM Test ---------------------------------------------------
@@ -3211,10 +3230,6 @@ dax_gbm = function(init_date, quantile_levels = c(0.025,0.25,0.5,0.75,0.975),
 dax_gbm('2022-01-12')
 dax_gbm('2022-01-12', add_futures=TRUE, days_before=3)
 
-load('graphics and tables for elaboration/DAX/week11_modelscores.RData')
-scores_dax_all_models
-#scores_dax_qrf_days_before
-
 # Evaluate
 init_dates = c('2020-04-02', '2019-08-16', '2005-01-14', '2012-12-07', '2008-03-07', '2006-06-15', '2021-10-27', '2021-11-03', 
                '2021-11-10', '2021-11-17', '2021-11-24', '2021-12-01', '2021-12-08', '2021-12-15', '2021-12-22', '2022-01-12')
@@ -3233,7 +3248,26 @@ scores_dax_gbm[6,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_ho
 scores_dax_gbm[7,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, add_futures = TRUE, days_before = 3, 
                                         n.trees = 3000)
 scores_dax_gbm[8,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, days_before = 3, n.trees = 3000)
-scores_dax_gbm
+
+scores_dax_gbm_tuning = matrix(NA, 5, 6)
+colnames(scores_dax_gbm_tuning) = colnames(scores_dax_all_models)
+rownames(scores_dax_gbm_tuning) = c('10', '50', '100', '250', '500')
+
+i = 1
+for(n.trees in c('10', '50', '100', '250', '500')){
+  cat(paste0('n.trees = ', n.trees, '\n'))
+  scores_dax_gbm_tuning[i,] = evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, n.trees=n.trees)
+  i = i + 1
+}
+
+save(scores_dax_gbm, scores_dax_gbm_tuning, file='graphics and tables for elaboration/DAX/week11_gbm_test.RData')
 
 # Compare
+load()
+load('graphics and tables for elaboration/DAX/week11_modelscores.RData')
 scores_dax_all_models
+load('graphics and tables for elaboration/DAX/week11_gbm_test.RData')
+scores_dax_gbm
+scores_dax_gbm_tuning
+
+evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, n.trees=3)
