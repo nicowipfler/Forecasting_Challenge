@@ -3043,6 +3043,47 @@ load('graphics and tables for elaboration/weather/week10_cross_validation.RData'
 cv_scores_temp
 
 
+# WEEK 11: Test Temp GBM with additional vars -----------------------------
+
+
+scores_temp_gbm_addvars = matrix(NA, 8, 6)
+rownames(scores_temp_gbm_addvars) = c(paste0('n.trees=', c(50, 100, 500, 1000, 3000, 6000)), 'CLCT, n.trees opt', 'MSLP, n.trees opt')
+colnames(scores_temp_gbm_addvars) = colnames(cv_scores_temp)
+i = 1
+for(n.trees in c(50, 100, 500, 1000, 3000, 6000)){
+  start_time = Sys.time()
+  message(paste0('Evaluation parameter combination number ', i))
+  scores_temp_gbm_addvars[i,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=n.trees, addrad = TRUE,
+                                                                          shrinkage=0.01, interaction.depth=1), 2, mean)
+  cat(paste0('\nTime Taken: ', Sys.time()-start_time, '\n\n'))
+  i = i + 1
+}
+#TODO Select best n.trees from above
+scores_temp_gbm_addvars[7,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=3000, addclct = TRUE,
+                                                   shrinkage=0.01, interaction.depth=1), 2, mean)
+scores_temp_gbm_addvars[8,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=3000, addmslp = TRUE,
+                                                   shrinkage=0.01, interaction.depth=1), 2, mean)
+
+scores_temp_gbm_clct_test = matrix(NA, 3, 6)
+rownames(scores_temp_gbm_clct_test) = c(paste0('n.trees=', c(1000, 3000, 5000)))
+colnames(scores_temp_gbm_clct_test) = colnames(cv_scores_temp)
+
+i = 1
+for(n.trees in c(1000, 3000, 5000)){
+  start_time = Sys.time()
+  message(paste0('Evaluation parameter combination number ', i))
+  scores_temp_gbm_clct_test[i,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=n.trees, addclct=TRUE,
+                                                             shrinkage=0.01, interaction.depth=1), 2, mean)
+  cat(paste0('\nTime Taken: ', Sys.time()-start_time, '\n\n'))
+  i = i + 1
+}
+
+save(scores_temp_gbm_addvars, cv_scores_gbm_temp_tuning, cv_scores_gbm_temp_tuning_more_trees, scores_temp_gbm_clct_test,
+     file='graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
+load('graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
+scores_temp_gbm_addvars
+scores_temp_gbm_clct_test
+
 # WEEK 11: Test One additional day as input features DAX QRF --------------
 
 
