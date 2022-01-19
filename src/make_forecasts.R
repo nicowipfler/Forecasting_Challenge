@@ -19,7 +19,7 @@ source('src/model_temp.R')
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2022-01-12'
+date = '2022-01-19'
 
 
 ### DAX +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -55,8 +55,8 @@ fcst_dax_qrfgarch = dax_qrfgarch(date, add_futures=TRUE, weight_garch=0.9)
 fcst_dax_qrfgarch
 
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
-dax_model_name = fcst_dax_qrfgarch_model
-fcst_dax = fcst_dax_qrfgarch
+dax_model_name = fcst_dax_quantgarch_model
+fcst_dax = fcst_dax_quantgarch
 
 # Visual Check
 plot_forecasts_dax(date, fcst_dax, history_size=200, ylim = c(-8, 8),
@@ -140,8 +140,7 @@ fcst_wind_gbm_emos_model = 'GBM for night, EMOS TL + MSLP for day'
 fcst_wind_gbm_emos = wind_gbm_emos_mix(date)
 fcst_wind_gbm_emos
 
-
-## GBM + EMOS
+## GBM MSLP + EMOS 
 fcst_wind_gbm_emos_mslp_model = 'GBM + MSLP for night, EMOS TL + MSLP for day'
 fcst_wind_gbm_emos_mslp = wind_gbm_emos_mix(date, addmslp=TRUE)
 fcst_wind_gbm_emos_mslp
