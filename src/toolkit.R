@@ -14,8 +14,21 @@ load_libs = function(libs){
 combine_forecasts = function(fc_in1, fc_in2, weights=c(0.5,0.5)){
   #' Function that combines two forecasts by weighted averaging. Standard: arithmetic mean
   #' fc_in1 and fc_in2: matrices containing the forecasts
+  #' weights: weights for fc 1 and 2
   
   fc_out = weights[1] * fc_in1 + weights[2] * fc_in2
+  return(fc_out)
+}
+
+combine_forecasts_per_horizon = function(fc_in1, fc_in2, weights=c(0.5,0.5,0.5,0.5,0.5)){
+  #' Function that combines two forecasts by weighted averaging. Standard: arithmetic mean
+  #' fc_in1 and fc_in2: matrices containing the forecasts
+  #' weights: weights for fc_in1 per horizon
+  
+  fc_out = matrix(NA, 5, dim(fc_in1)[2])
+  for(i in 1:5){
+    fc_out[i,] = weights[i] * fc_in1[i,] + (1-weights[i]) * fc_in2[i,]
+  }
   return(fc_out)
 }
 
