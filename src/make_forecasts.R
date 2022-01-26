@@ -19,7 +19,7 @@ source('src/model_temp.R')
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2022-01-19'
+date = '2022-01-26'
 
 
 ### DAX +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -145,9 +145,14 @@ fcst_wind_gbm_emos_mslp_model = 'GBM + MSLP for night, EMOS TL + MSLP for day'
 fcst_wind_gbm_emos_mslp = wind_gbm_emos_mix(date, addmslp=TRUE)
 fcst_wind_gbm_emos_mslp
 
+## GBM MSLP + EMOS weighted
+fcst_wind_gbm_emos_mslp_weighted_model = 'GBM + MSLP for night, EMOS TL + MSLP for day, weighted per horizon'
+fcst_wind_gbm_emos_mslp_weighted = wind_gbm_emos_mix(date, addmslp=TRUE, weights_gbm=c(0.3,0.7,0.3,0.7,0.3))
+fcst_wind_gbm_emos_mslp_weighted
+
 # WHICH ONE SHOULD BE USED? +++++++++++++++++++++++++++++++++++++++++++++++++
-wind_model_name = fcst_wind_gbm_emos_mslp_model
-fcst_wind = fcst_wind_gbm_emos_mslp
+wind_model_name = fcst_wind_gbm_emos_mslp_weighted_model
+fcst_wind = fcst_wind_gbm_emos_mslp_weighted
 
 # Visual check
 plot_forecasts_weather(date, fcst_wind, history_size=14, ylim=c(0,40),
