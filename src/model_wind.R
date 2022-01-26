@@ -378,15 +378,23 @@ wind_gbm = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), add
 }
 
 wind_gbm_emos_mix = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), addmslp=FALSE, addclct=FALSE, addrad=FALSE, 
-                             training_data, n.trees=1000, shrinkage=0.01, interaction.depth=1){
+                             training_data, n.trees=1000, shrinkage=0.01, interaction.depth=1, weights_gbm){
   #' Use EMOS TL + MSLP for odd horizons (noon) and gmb for even horizons (night)
   #' addxyz refers to GBM model (EMOS is fixed: includes MSLP)
+  #' training_data is for cross validation
+  #' n.trees, shrinkage and interaction.depth as in GBM package
+  #' weights_gbm: OPTIONAL vector containing 5 floats between 0 and 1. If added: Weighted mixture per horizon, else 0-1-encoding
   
   fcst_gbm = wind_gbm(init_date=init_date, quantile_levels=quantile_levels, addmslp=addmslp, addclct=addclct, addrad=addrad, 
                       training_data=training_data, n.trees=n.trees, shrinkage=shrinkage, interaction.depth=interaction.depth)
   fcst_emos = wind_emos_tl_multi(init_date=init_date,quantile_levels=quantile_levels,training_data=training_data)
-  fcst = fcst_emos
-  fcst[2,] = fcst_gbm[2,]
-  fcst[4,] = fcst_gbm[4,]
+  if(missing(weights_gbm)){
+    fcst = fcst_emos
+    fcst[2,] = fcst_gbm[2,]
+    fcst[4,] = fcst_gbm[4,]
+  }
+  else{
+    fcst = combine_forecasts_per_horizon(fc_in1=fcst_gbm, fc_in2=fcst_emos, weights=weights_gbm)
+  }
   return(fcst)
 }

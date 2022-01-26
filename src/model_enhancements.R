@@ -3058,7 +3058,7 @@ for(n.trees in c(50, 100, 500, 1000, 3000, 6000)){
   cat(paste0('\nTime Taken: ', Sys.time()-start_time, '\n\n'))
   i = i + 1
 }
-#TODO Select best n.trees from above
+# Select best n.trees from above
 scores_temp_gbm_addvars[7,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=3000, addclct = TRUE,
                                                    shrinkage=0.01, interaction.depth=1), 2, mean)
 scores_temp_gbm_addvars[8,] = apply(cross_validate_weather(temp_gbm, 'air_temperature', n.trees=3000, addmslp = TRUE,
@@ -3082,7 +3082,10 @@ save(scores_temp_gbm_addvars, cv_scores_gbm_temp_tuning, cv_scores_gbm_temp_tuni
      file='graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
 load('graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
 scores_temp_gbm_addvars
-scores_temp_gbm_clct_test
+#scores_temp_gbm_clct_test
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+cv_scores_temp
+
 
 # WEEK 11: Test One additional day as input features DAX QRF --------------
 
@@ -3312,3 +3315,42 @@ scores_dax_gbm
 scores_dax_gbm_tuning
 
 evaluate_model_dax(dax_gbm, init_dates = init_dates, per_horizon = TRUE, n.trees=3)
+
+
+# WEEK 12: WIND GBM + EMOS weighting instead of 1-0-encoding --------------
+
+
+source('src/model_wind.R')
+
+cv_scores_gbm_emos_weighting = matrix(NA, 16, 6)
+colnames(cv_scores_gbm_emos_weighting) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+grid_gbm = c(0,0.3,0.7,1)
+rownames = c('Test')
+
+# This loop should take about 10 hours of computation
+i = 1
+for(weight_gbm_day in grid_gbm){
+  for(weight_gbm_night in grid_gbm){
+    start_time = Sys.time()
+    cat(paste0('\nEvaluating weight combination number ', i, ' of ', length(grid_gbm)**2, '\n'))
+    rownames = append(rownames, paste0('GBM weight day: ', weight_gbm_day, ' and night: ', weight_gbm_night))
+    cv_scores_gbm_emos_weighting[i,] = apply(cross_validate_weather(wind_gbm_emos_mix, 'wind', addmslp=TRUE, 
+                                                                    weights_gbm=c(weight_gbm_day,weight_gbm_night,weight_gbm_day,
+                                                                                  weight_gbm_night,weight_gbm_day)), 
+                                             2, mean)
+    cat(paste0('\nTime Elapsed: ', Sys.time()-start_time, '\n', 'Time consumed per model run: ', (Sys.time()-start_time)/140))
+    i = i + 1
+  }
+}
+rownames(cv_scores_gbm_emos_weighting) = rownames[-1]
+
+# Save
+save(cv_scores_gbm_emos_weighting, file='graphics and tables for elaboration/weather/week12_cv_wind_gbm_emos_weights.RData')
+
+# Load
+load('graphics and tables for elaboration/weather/week12_cv_wind_gbm_emos_weights.RData')
+cv_scores_gbm_emos_weighting
+
+# Compare
+load('graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_emos.RData')
+cv_scores_gbm_emos
