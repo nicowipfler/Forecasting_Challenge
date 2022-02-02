@@ -41,8 +41,8 @@ for (i in 1:5){
                           wind_data_test,
                           type = "scale")
   wind_model_pit_test <- ptnorm(wind_data_test$obs, wind_pred_loc, wind_pred_sc, left = 0)
-  hist(wind_model_pit_test, nclass = 41, freq = F, ylim = c(0,10)); abline(h = 1, lty = 2)
-  Sys.sleep(2) 
+  hist(wind_model_pit_test, nclass = 41, freq = F, ylim = c(0,10), main=paste0('Histogram of wind EMOS truncated normal at horizon ', fcst_horizon)); abline(h = 1, lty = 2)
+  Sys.sleep(2)
 }
 
 # truncated_log.pdf indicates, that truncated logistic distribution is a much better fit
@@ -76,10 +76,9 @@ for (i in 1:5){
                           wind_data_test,
                           type = "scale")
   wind_model_pit_test <- ptlogis(wind_data_test$obs, wind_pred_loc, wind_pred_sc, left = 0)
-  hist(wind_model_pit_test, nclass = 41, freq = F, ylim = c(0,10)); abline(h = 1, lty = 2)
+  hist(wind_model_pit_test, nclass = 41, freq = F, ylim = c(0,10), main=paste0('Histogram of wind EMOS truncated logistic at horizon ', fcst_horizon)); abline(h = 1, lty = 2)
   Sys.sleep(2) 
 }
-
 
 # differences aren't huge
 
@@ -203,7 +202,7 @@ spec = ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
 # Modell schätzen
 ugarch_fit = ugarchfit(spec, data = dax_df)
 ugarch_fit
-# Ljung-Box-Test: Statistisch kann keine Korrellation mehr in dne quadrierten, standardisierten Residuen nachgewiesen werden
+# Ljung-Box-Test: Statistisch kann keine Korellation mehr in den quadrierten, standardisierten Residuen nachgewiesen werden
 # Standardisierte Residuen:
 res_std = residuals(ugarch_fit, standardize = TRUE)
 # df der t-Vert. in Modellspezifikation
@@ -662,7 +661,7 @@ data_clct = data_icon_eps
 load(paste0(data_dir, "icon_eps_mslp.RData"))
 data_mslp = data_icon_eps
 # Get downward radiation
-load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+load(paste0(data_dir, "icon_eps_direct_rad.RData"))
 data_aswdir_s = data_icon_eps
 rm(data_icon_eps)
 
@@ -670,8 +669,8 @@ rm(data_icon_eps)
 
 horizons = c(36,48,60,72,84)
 cors = matrix(nrow=5,ncol=2)
-rownames(cors) = c('Pearson-Correlation', 'p-value')
-colnames(cors) = horizons
+colnames(cors) = c('Pearson-Correlation', 'p-value')
+rownames(cors) = horizons
 
 library('gridExtra')
 library('ggplot2')
@@ -683,8 +682,8 @@ for (n_horizon in 1:5){
   other = subset(data_aswdir_s, fcst_hour==horizon)
   merged = merge(x=temp, y=other, by="obs_tm")
   test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
-  cors[n_horizon,1] = test$estimate
-  cors[n_horizon,2] = test$p.value
+  cors[n_horizon,1] = round(test$estimate,3)
+  cors[n_horizon,2] = format(test$p.value, digits=3)
   nam = paste('plot',n_horizon,sep='')
   assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
 }
@@ -700,8 +699,8 @@ for (n_horizon in 1:5){
   other = subset(data_clct, fcst_hour==horizon)
   merged = merge(x=temp, y=other, by="obs_tm")
   test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
-  cors[n_horizon,1] = test$estimate
-  cors[n_horizon,2] = test$p.value
+  cors[n_horizon,1] = round(test$estimate,3)
+  cors[n_horizon,2] = format(test$p.value, digits=3)
   nam = paste('plot',n_horizon,sep='')
   assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
 }
@@ -717,8 +716,8 @@ for (n_horizon in 1:5){
   other = subset(data_mslp, fcst_hour==horizon)
   merged = merge(x=temp, y=other, by="obs_tm")
   test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
-  cors[n_horizon,1] = test$estimate
-  cors[n_horizon,2] = test$p.value
+  cors[n_horizon,1] = round(test$estimate,3)
+  cors[n_horizon,2] = format(test$p.value, digits=3)
   nam = paste('plot',n_horizon,sep='')
   assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
 }
@@ -739,8 +738,8 @@ for (n_horizon in 1:5){
   other = subset(data_wind, fcst_hour==horizon)
   merged = merge(x=temp, y=other, by="obs_tm")
   test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
-  cors[n_horizon,1] = test$estimate
-  cors[n_horizon,2] = test$p.value
+  cors[n_horizon,1] = round(test$estimate,3)
+  cors[n_horizon,2] = format(test$p.value, digits=3)
   nam = paste('plot',n_horizon,sep='')
   assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
 }
@@ -753,10 +752,11 @@ grid.arrange(plot1, plot2, plot3, plot4, plot5, cor_table, nrow = 3)
 # WEEK 4: Models including multiple regressors for temp -------------------
 
 
+init_dates = c('2021-10-27', '2021-11-03', '2021-11-10')
 temp_emos_multi_rad = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
   t2m_data_raw = get_hist_temp_data()
   # get historic rad data
-  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  load(paste0(data_dir, "icon_eps_direct_rad.RData"))
   data_aswdir_s = data_icon_eps
   # Get current ensemble forecasts
   data_dir_daily = "C://dev//Forecasting_Challenge//data//weather_daily//Berlin//"
@@ -766,7 +766,7 @@ temp_emos_multi_rad = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
   # get current rad data
-  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_direct_rad_Berlin.txt"), sep = "|", header = TRUE)
   new_fcst_rad[,1] = NULL
   new_fcst_rad[,ncol(new_fcst_rad)] = NULL
   # Prepare Output Data
@@ -816,7 +816,7 @@ temp_emos_multi_rad_wind = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   # get historic temp data
   t2m_data_raw = get_hist_temp_data()
   # get historic rad data
-  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  load(paste0(data_dir, "icon_eps_direct_rad.RData"))
   data_aswdir_s = data_icon_eps
   # get historic wind data
   wind_raw = get_hist_wind_data()
@@ -828,7 +828,7 @@ temp_emos_multi_rad_wind = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
   # get current rad data
-  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_direct_rad_Berlin.txt"), sep = "|", header = TRUE)
   new_fcst_rad[,1] = NULL
   new_fcst_rad[,ncol(new_fcst_rad)] = NULL
   # get current wind data
@@ -888,9 +888,9 @@ temp_emos_multi_rad_wind = function(init_date, quantile_levels=c(0.025,0.25,0.5,
 
 # EVALUATE MODELS FOR ONLY TWO AVAILABLE DATES USING CRPS APPROX
 crps = matrix(nrow=1,ncol=4)
-crps[1] = suppressWarnings(evaluate_model_weather(temp_emos,'air_temperature'))
-crps[2] = suppressWarnings(evaluate_model_weather(temp_emos_multi_rad,'air_temperature'))
-crps[3] = suppressWarnings(evaluate_model_weather(temp_emos_multi_rad_wind,'air_temperature'))
+crps[1] = suppressWarnings(evaluate_model_weather(temp_emos,'air_temperature',init_dates=init_dates))
+crps[2] = suppressWarnings(evaluate_model_weather(temp_emos_multi_rad,'air_temperature',init_dates=init_dates))
+crps[3] = suppressWarnings(evaluate_model_weather(temp_emos_multi_rad_wind,'air_temperature',init_dates=init_dates))
 crps
 
 # check if model including wind differs greatly
@@ -903,7 +903,7 @@ temp_emos_multi_rad_clct = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   # get historic temp data
   t2m_data_raw = get_hist_temp_data()
   # get historic rad data
-  load(paste0(data_dir, "icon_eps_aswdir_s.RData"))
+  load(paste0(data_dir, "icon_eps_direct_rad.RData"))
   data_aswdir_s = data_icon_eps
   # get historic rad data
   load(paste0(data_dir, "icon_eps_clct.RData"))
@@ -916,7 +916,7 @@ temp_emos_multi_rad_clct = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   new_fcst[,1] = NULL
   new_fcst[,ncol(new_fcst)] = NULL
   # get current rad data
-  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_aswdir_s_Berlin.txt"), sep = "|", header = TRUE)
+  new_fcst_rad = read.table(file = paste0(data_dir_daily, "icon-eu-eps_",date_formatted,"00_direct_rad_Berlin.txt"), sep = "|", header = TRUE)
   new_fcst_rad[,1] = NULL
   new_fcst_rad[,ncol(new_fcst_rad)] = NULL
   # get current clct data
@@ -1007,8 +1007,10 @@ temp_emos_multi_rad_clct = function(init_date, quantile_levels=c(0.025,0.25,0.5,
   return(fcst_temp)
 }
 
-crps[4] = suppressWarnings(evaluate_model_weather(temp_emos_multi_rad_clct,'air_temperature'))
+crps[4] = suppressWarnings(evaluate_model_weather(temp_emos_multi_rad_clct,'air_temperature',init_dates=init_dates))
+colnames(crps) = c('BASE', 'RAD', 'RAD and WIND', 'RAD and CLCT')
 crps
+save(crps, file='graphics and tables for elaboration/weather/additional_regressors/temp/scores.RData')
 # Better than adding wind on top, but worse than just adding rad
 # SO MSLP FOR NIGHT WONT BE TRIED (EVEN SMALLER CORRELATION)
 
@@ -1049,8 +1051,8 @@ for (n_horizon in 1:5){
   other = subset(data_aswdir_s, fcst_hour==horizon)
   merged = merge(x=wind, y=other, by="obs_tm")
   test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
-  cors[n_horizon,1] = test$estimate
-  cors[n_horizon,2] = test$p.value
+  cors[n_horizon,1] = round(test$estimate,3)
+  cors[n_horizon,2] = format(test$p.value, digits=3)
   nam = paste('plot',n_horizon,sep='')
   assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
 }
@@ -1066,8 +1068,8 @@ for (n_horizon in 1:5){
   other = subset(data_clct, fcst_hour==horizon)
   merged = merge(x=wind, y=other, by="obs_tm")
   test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
-  cors[n_horizon,1] = test$estimate
-  cors[n_horizon,2] = test$p.value
+  cors[n_horizon,1] = round(test$estimate,3)
+  cors[n_horizon,2] = format(test$p.value, digits=3)
   nam = paste('plot',n_horizon,sep='')
   assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
 }
@@ -1083,8 +1085,8 @@ for (n_horizon in 1:5){
   other = subset(data_mslp, fcst_hour==horizon)
   merged = merge(x=wind, y=other, by="obs_tm")
   test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
-  cors[n_horizon,1] = test$estimate
-  cors[n_horizon,2] = test$p.value
+  cors[n_horizon,1] = round(test$estimate,3)
+  cors[n_horizon,2] = format(test$p.value, digits=3)
   nam = paste('plot',n_horizon,sep='')
   assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
 }
@@ -1100,8 +1102,8 @@ for (n_horizon in 1:5){
   other = subset(data_temp, fcst_hour==horizon)
   merged = merge(x=wind, y=other, by="obs_tm")
   test = cor.test(merged$obs.x,merged$ens_mean.y,method='pearson',use="complete.obs")
-  cors[n_horizon,1] = test$estimate
-  cors[n_horizon,2] = test$p.value
+  cors[n_horizon,1] = round(test$estimate,3)
+  cors[n_horizon,2] = format(test$p.value, digits=3)
   nam = paste('plot',n_horizon,sep='')
   assign(nam, ggplot(merged, aes(x = ens_mean.y, y = obs.x)) + geom_point() + geom_smooth(col='blue',method='lm'))
 }
@@ -1319,6 +1321,7 @@ wind_emos_tl_multi_temp = function(init_date, quantile_levels=c(0.025,0.25,0.5,0
 }
 
 crps[4] = suppressWarnings(evaluate_model_weather(wind_emos_tl_multi_temp,'wind',init_dates=init_dates))
+colnames(crps) = c("Base", "MSLP", "CLCT", "Temp")
 crps
 save(crps, file='graphics and tables for elaboration/weather/additional_regressors/wind/scores.RData')
 
@@ -1784,6 +1787,7 @@ for (n_weight in 1:length(weights)){
   print(paste0(n_weight*9,'% done'))
 }
 weight_scores
+save(weight_scores, file='tables and figures for elaboration/DAX/GARCH/optimal_weights_quantgarch.RData')
 
 
 # WEEK 6: Optimal weights temp? -------------------------------------------
@@ -3354,3 +3358,59 @@ cv_scores_gbm_emos_weighting
 # Compare
 load('graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_emos.RData')
 cv_scores_gbm_emos
+
+
+# WORKSPACE ---------------------------------------------------------------
+
+
+# Additional Regressors, based on just three test dates
+load('graphics and tables for elaboration/weather/additional_regressors/temp/scores.RData')
+crps
+load('graphics and tables for elaboration/weather/additional_regressors/wind/scores.RData')
+crps
+
+
+
+# GARCH orders
+load('graphics and tables for elaboration/DAX/GARCH/garch_hyperparametertuning.RData')
+hypertuning_arma
+
+hypertuning_garch
+
+library(ggplot2)
+
+x = paste0(1:10,'') # if taken as numerical values plot gets ugly, so trick the system by making it strings
+y = paste0(1:10,'')
+df_grid = expand.grid(X=x,Y=y)
+df_grid
+scores = hypertuning_garch # rename for plot
+rownames(scores) = paste0('p=', 1:10)
+colnames(scores) = paste0('q=', 1:10)
+scores
+ggplot(df_grid, aes(X,Y, fill=scores)) + geom_tile() + scale_fill_gradient(low="black", high="bisque") +
+  labs(title = 'grid search GARCH(a,b) orders') + xlab('a') + ylab('b')
+
+
+# DAX Model Scores
+load('graphics and tables for elaboration/DAX/week9_modelscores.RData')
+model_scores
+
+load('graphics and tables for elaboration/DAX/evaluation_dax_models_week_6.RData')
+scores_dax_4weeks
+
+
+
+# QRF weather
+
+load('graphics and tables for elaboration/weather/qrf_scores.RData')
+scores_temp
+scores_wind
+scores_wind_old
+
+# After fix of scores:
+load('graphics and tables for elaboration/weather/qrf_wind_base_scores.RData')
+scores_temp
+scores_wind
+
+load('graphics and tables for elaboration/weather/qrf_wind_scores_additional_regressors.RData')
+scores_wind
