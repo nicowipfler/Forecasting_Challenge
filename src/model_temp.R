@@ -1,11 +1,15 @@
 # This file contains several functions that serve the purpose of estimating temperature
 
-temp_baseline = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975)){
+temp_baseline = function(init_date, quantile_levels=c(0.025,0.25,0.5,0.75,0.975), training_data){
   #' Function that implements baseline model for temp: Use raw ensemble quantiles
   #' init_date: String containing date of initialization of forecasts, e.g. "2021-10-23"
   #' quantile_levels: Vector of floats between 0 and 1 containing the quantiles, where forecasts should be made, e.g. c(0.25,0.5,0.75)
   
-  ensemble_data = get_current_temp_data(init_date)
+  if(missing(training_data)){
+    ensemble_data = get_current_temp_data(init_date)
+  } else {
+    ensemble_data = subset(get_hist_temp_data(), init_tm==as.Date(init_date))[,c(4,7:46)]
+  }
   fcst = matrix(ncol = length(quantile_levels), nrow = 5)
   i = 1
   for (lead_time in c(36,48,60,72,84)){

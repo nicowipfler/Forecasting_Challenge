@@ -1872,7 +1872,7 @@ score
 
 init_dates = c('2021-10-27', '2021-11-03', '2021-11-10', '2021-11-17', '2021-11-24')
 scores_wind = matrix(nrow=6, ncol=1, 0)
-rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'QRF', 'QRF Var1', 'QRF Var2', 'QRF Var 3')
+rownames(scores_wind) = c('Multi EMOS', '+ Boosting', 'QRF', 'QRF Variant 1', 'QRF Variant 2', 'QRF Variant 3')
 scores_wind[1] = evaluate_model_weather(wind_emos_tl_multi,'wind',init_dates=init_dates)
 scores_wind[2] = evaluate_model_weather(wind_emos_tl_multi_boosting,'wind',init_dates=init_dates)
 scores_runs_3 = matrix(NA,5,1)
@@ -1902,6 +1902,8 @@ test_score
 #test_score = evaluate_model_weather(boosting_qrf_comb,'wind',init_dates=init_dates, weights=c(0.8,0.2))
 #test_score
 save(scores_wind, test_score, file='graphics and tables for elaboration/weather/qrf_wind_base_scores.RData')
+load('graphics and tables for elaboration/weather/qrf_wind_base_scores.RData')
+scores_wind
 
 
 # WEEK 7: QRF with additional variables -----------------------------------
@@ -2022,7 +2024,7 @@ scores_wind_old
 #scores_wind
 
 
-# WEEK 8: QRF WEATHER -----------------------------------------------------
+# WEEK 8: QRF Weather - Additional Regressors and more/less features ------
 
 
 ## FIRST: TEMP
@@ -2263,7 +2265,11 @@ save(scores_wind, scores_temp, scores_wind_additional, scores_temp_additional,
      importances_temp, importances_temp_less, importances_wind,
      file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
 
-#load(file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
+load(file='C:/dev/Forecasting_Challenge/graphics and tables for elaboration/weather/qrf_scores_more.RData')
+scores_wind
+scores_wind_additional
+scores_temp
+scores_temp_additional
 
 
 # WEEK 9: Feature Engineering DAX QRF -------------------------------------
@@ -2545,7 +2551,8 @@ colnames(temp_model_scores) = c("Baseline", "EMOS", "EMOS Multi", "EMOS Multi Bo
 temp_model_scores
 
 save(temp_model_scores, wind_model_scores, file="graphics and tables for elaboration/weather/week10_modelscores.RData")
-#load("graphics and tables for elaboration/weather/week10_modelscores.RData")
+load("graphics and tables for elaboration/weather/week10_modelscores.RData")
+wind_model_scores
 
 
 # WEEK 10: Test Weather QRF with less predictors --------------------------
@@ -2840,7 +2847,8 @@ cv_scores_gbm_tuning
 
 
 save(cv_scores_gbm_tuning, file='graphics and tables for elaboration/weather/week10_gbm_cv.RData')
-
+load('graphics and tables for elaboration/weather/week10_gbm_cv.RData')
+cv_scores_gbm_tuning
 
 # Compare CV Results
 load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
@@ -3360,6 +3368,86 @@ load('graphics and tables for elaboration/weather/week11_cross_validation_wind_g
 cv_scores_gbm_emos
 
 
+# WEEK 14: Overview over selected models for weather ----------------------
+
+
+#### WIND ###
+
+# Overview of what i want:
+#' 1: Baseline
+#' 2: EMOS Start
+#' 3: EMOS TL
+#' 4: EMOS TL Multi
+#' 5: EMOS TL Multi Boosting
+#' 6: QRF Base
+#' 7: QRF using optimal regressor (CLCT)
+#' 8: GBM Base
+#' 9: GBM using optimal regressor (MSLP)
+#' 10: Weighted Mixture of EMOS TL Multi and GBM Multi
+
+overview_models_wind = matrix(NA, 10, 6)
+colnames(overview_models_wind) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+rownames(overview_models_wind) = c('Baseline', 'EMOS', 'EMOS TL', 'EMOS TL MSLP', 'EMOS TL MSLP Boosting',
+                                   'QRF Base', 'QRF CLCT', 'GBM Base', 'GBM MSLP', 'Mixture EMOS GBM')
+
+# 1:
+source('src/model_wind.R')
+overview_models_wind[1,] = apply(cross_validate_weather(wind_baseline, 'wind'), 2, mean)
+
+# 2-6:
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+overview_models_wind[2:6,] = cv_scores_wind
+
+# 7:
+source('src/model_wind.R')
+overview_models_wind[7,] = apply(cross_validate_weather(wind_qrf, 'wind', kfold=10, addclct=TRUE), 2, mean)
+
+# 8, 9:
+load('graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_additionalvars.RData')
+overview_models_wind[8:9,] = cv_scores_gbm_add_vars[c(1,5),]
+
+# 10:
+load('graphics and tables for elaboration/weather/week12_cv_wind_gbm_emos_weights.RData')
+overview_models_wind[10,] = cv_scores_gbm_emos_weighting[3,]
+
+save(overview_models_wind, file='graphics and tables for elaboration/weather/week14_cv_overview_wind_models.RData')
+load('graphics and tables for elaboration/weather/week14_cv_overview_wind_models.RData')
+overview_models_wind
+
+
+#### TEMP ###
+
+# Overview of what i want:
+#' 1: Baseline
+#' 2: EMOS Base
+#' 3: EMOS Multi
+#' 4: EMOS Multi Boosting
+#' 5: QRF Base
+#' 6: GBM CLCT
+
+overview_models_temp = matrix(NA, 6, 6)
+colnames(overview_models_temp) = c('Overall', '36h', '48h', '60h', '72h', '84h')
+rownames(overview_models_temp) = c('Baseline', 'EMOS', 'EMOS RAD', 'EMOS RAD Boosting',
+                                   'QRF', 'GBM CLCT')
+
+# 1:
+source('src/model_temp.R')
+overview_models_temp[1,] = apply(cross_validate_weather(temp_baseline, 'air_temperature'), 2, mean)
+
+# 2-5:
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+overview_models_temp[2:4,] = cv_scores_temp[1:3,]
+overview_models_temp[5,] = cv_scores_temp[5,]
+
+# 6:
+load('graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
+overview_models_temp[6,] = scores_temp_gbm_addvars[7,]
+
+save(overview_models_temp, file='graphics and tables for elaboration/weather/week14_cv_overview_temp_models.RData')
+load('graphics and tables for elaboration/weather/week14_cv_overview_temp_models.RData')
+overview_models_temp
+
+
 # WORKSPACE ---------------------------------------------------------------
 
 
@@ -3414,3 +3502,25 @@ scores_wind
 
 load('graphics and tables for elaboration/weather/qrf_wind_scores_additional_regressors.RData')
 scores_wind
+
+# QRF WEATHER HOLDOUT TEST SET
+
+load('graphics and tables for elaboration/weather/qrf_wind_scores_additional_regressors.RData')
+scores_wind
+
+load('graphics and tables for elaboration/weather/qrf_scores.RData')
+scores_temp
+
+# QRF WEATHER CROSSVALIDATION
+
+load('graphics and tables for elaboration/weather/week10_cross_validation.RData')
+cv_scores_temp
+cv_scores_wind
+
+# GBM
+
+load('graphics and tables for elaboration/weather/week11_cross_validation_wind_gbm_additionalvars.RData')
+cv_scores_gbm_add_vars
+
+load('graphics and tables for elaboration/weather/week11_cross_validation_temp.RData')
+scores_temp_gbm_addvars
