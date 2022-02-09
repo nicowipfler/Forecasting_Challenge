@@ -12,14 +12,12 @@ load_libs(libs = c('dplyr', 'lubridate', 'tidyr', 'quantreg', 'scoringRules', 'c
 source('src/model_dax.R')
 source('src/model_wind.R')
 source('src/model_temp.R')
-#TODO Temperature: Get from git repo berlin
-#TODO Wind: Get from git repo berlin
 
 
 # Forecasts ---------------------------------------------------------------
 
 
-date = '2022-02-02'
+date = '2022-02-09'
 
 
 ### DAX +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -155,7 +153,7 @@ wind_model_name = fcst_wind_gbm_emos_mslp_weighted_model
 fcst_wind = fcst_wind_gbm_emos_mslp_weighted
 
 # Visual check
-plot_forecasts_weather(date, fcst_wind, history_size=14, ylim=c(0,40),
+plot_forecasts_weather(date, fcst_wind, history_size=14, ylim=c(0,60),
                        model_name=wind_model_name, 'wind')
 
 
